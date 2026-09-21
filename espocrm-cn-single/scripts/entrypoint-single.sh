@@ -3,57 +3,19 @@ set -Eeuo pipefail
 
 export TZ="${ESPOCRM_TIME_ZONE:-Asia/Shanghai}"
 
-CREDENTIAL_FILE="/data/.credentials"
-FIRST_CREDENTIAL_INIT=false
-
-generate_secret() {
-  od -An -N18 -tx1 /dev/urandom | tr -d ' \n'
-}
-
-mkdir -p /data /data/mysql /data/espocrm/data /data/espocrm/custom /data/espocrm/client-custom /run/mysqld
-chmod 700 /data
-
-# 先读取首次启动时持久化的内部凭据。
-# 用户显式传入的环境变量优先级更高。
-if [ -f "${CREDENTIAL_FILE}" ]; then
-  # shellcheck disable=SC1090
-  source "${CREDENTIAL_FILE}"
-fi
-
+# 开箱即用默认凭据。可通过环境变量覆盖。
+# 公网使用时请在首次登录后立即修改管理员密码。
 ESPOCRM_ADMIN_USERNAME="${ESPOCRM_ADMIN_USERNAME:-admin}"
+ESPOCRM_ADMIN_PASSWORD="${ESPOCRM_ADMIN_PASSWORD:-EspoCRM2026}"
+ESPOCRM_DATABASE_PASSWORD="${ESPOCRM_DATABASE_PASSWORD:-EspoDB2026}"
+MARIADB_ROOT_PASSWORD="${MARIADB_ROOT_PASSWORD:-MariaDB2026}"
 ESPOCRM_SITE_URL="${ESPOCRM_SITE_URL:-http://localhost:8080}"
-
-if [ -z "${ESPOCRM_ADMIN_PASSWORD:-}" ]; then
-  ESPOCRM_ADMIN_PASSWORD="$(generate_secret)"
-  FIRST_CREDENTIAL_INIT=true
-fi
-
-if [ -z "${ESPOCRM_DATABASE_PASSWORD:-}" ]; then
-  ESPOCRM_DATABASE_PASSWORD="$(generate_secret)"
-  FIRST_CREDENTIAL_INIT=true
-fi
-
-if [ -z "${MARIADB_ROOT_PASSWORD:-}" ]; then
-  MARIADB_ROOT_PASSWORD="$(generate_secret)"
-  FIRST_CREDENTIAL_INIT=true
-fi
 
 export ESPOCRM_ADMIN_USERNAME
 export ESPOCRM_ADMIN_PASSWORD
 export ESPOCRM_DATABASE_PASSWORD
 export MARIADB_ROOT_PASSWORD
 export ESPOCRM_SITE_URL
-
-# 第一次生成后保存，后续容器重启/重建继续复用，不会随机改变。
-if [ ! -f "${CREDENTIAL_FILE}" ] || [ "${FIRST_CREDENTIAL_INIT}" = "true" ]; then
-  umask 077
-  cat > "${CREDENTIAL_FILE}" <<EOF
-ESPOCRM_ADMIN_PASSWORD='${ESPOCRM_ADMIN_PASSWORD}'
-ESPOCRM_DATABASE_PASSWORD='${ESPOCRM_DATABASE_PASSWORD}'
-MARIADB_ROOT_PASSWORD='${MARIADB_ROOT_PASSWORD}'
-EOF
-  chmod 600 "${CREDENTIAL_FILE}"
-fi
 
 DB_NAME="${ESPOCRM_DATABASE_NAME:-espocrm}"
 DB_USER="${ESPOCRM_DATABASE_USER:-espocrm}"
@@ -173,7 +135,8 @@ if [ "${IS_INSTALLED}" != "true" ]; then
   echo " 管理员密码: ${ESPOCRM_ADMIN_PASSWORD}"
   echo "------------------------------------------------------------"
   echo " 请立即保存管理员密码，并在首次登录后修改密码。"
-  echo " 内部数据库凭据已保存在持久化文件: /data/.credentials"
+  echo " 默认密码来自镜像预设或你传入的环境变量。"
+  echo " 公网使用请立即修改管理员密码。"
   echo "============================================================"
   echo ""
 else
