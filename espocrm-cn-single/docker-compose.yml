@@ -1,0 +1,21 @@
+services:
+  espocrm:
+    image: ghcr.io/1988199/espocrm-cn-single:latest
+    container_name: espocrm
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    environment:
+      ESPOCRM_SITE_URL: "${ESPOCRM_SITE_URL}"
+      ESPOCRM_ADMIN_USERNAME: "${ESPOCRM_ADMIN_USERNAME:-admin}"
+      ESPOCRM_ADMIN_PASSWORD: "${ESPOCRM_ADMIN_PASSWORD}"
+      ESPOCRM_DATABASE_PASSWORD: "${ESPOCRM_DATABASE_PASSWORD}"
+      MARIADB_ROOT_PASSWORD: "${MARIADB_ROOT_PASSWORD}"
+      ESPOCRM_LANGUAGE: "zh_CN"
+      ESPOCRM_TIME_ZONE: "Asia/Shanghai"
+      ESPOCRM_DEFAULT_CURRENCY: "CNY"
+    volumes:
+      - ./data:/data
+    mem_limit: 900m
+    mem_reservation: 512m
+    cpus: 1.0
