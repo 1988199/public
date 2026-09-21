@@ -5,16 +5,17 @@ pid-file=/run/mysqld/mysqld.pid
 bind-address=127.0.0.1
 skip-name-resolve
 
+# 1C1G low-memory tuning for MariaDB
 innodb_buffer_pool_size=128M
 innodb_log_buffer_size=8M
-innodb_redo_log_capacity=64M
+innodb_log_file_size=64M
 innodb_flush_method=O_DIRECT
 innodb_flush_log_at_trx_commit=1
 
 max_connections=35
 thread_cache_size=8
 table_open_cache=256
-table_definition_cache=256
+table_definition_cache=400
 tmp_table_size=16M
 max_heap_table_size=16M
 performance_schema=OFF
