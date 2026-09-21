@@ -1,4 +1,4 @@
-name: Auto Build EspoCRM CN Single Image
+name: EspoCRM Auto Build
 
 on:
   push:
@@ -7,27 +7,13 @@ on:
     paths:
       - "espocrm-cn-single/**"
       - ".github/workflows/espocrm-auto-build.yml"
+  workflow_dispatch:
   schedule:
     - cron: "17 2 * * *"
-  workflow_dispatch:
-    inputs:
-      force_version:
-        description: "Optional EspoCRM version, e.g. 10.0.8"
-        required: false
-        type: string
-        default: ""
 
 permissions:
   contents: write
   packages: write
-
-concurrency:
-  group: espocrm-auto-build
-  cancel-in-progress: false
-
-env:
-  REGISTRY: ghcr.io
-  PROJECT_DIR: espocrm-cn-single
 
 jobs:
   build:
@@ -37,65 +23,29 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Detect version
-        id: version
+      - name: Read current version and detect latest
+        id: ver
         shell: bash
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          FORCE_VERSION: ${{ inputs.force_version }}
         run: |
           set -euo pipefail
+          CURRENT="$(tr -d '[:space:]' < espocrm-cn-single/VERSION)"
+          LATEST="$(curl -fsSL 'https://hub.docker.com/v2/repositories/espocrm/espocrm/tags?page_size=100' | python3 -c 'import json,sys,re; d=json.load(sys.stdin); v=[tuple(map(int,x["name"].split("."))) for x in d.get("results",[]) if re.fullmatch(r"[0-9]+[.][0-9]+[.][0-9]+",x.get("name",""))]; print(".".join(map(str,max(v))))')"
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
+          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
+          echo "Current=$CURRENT"
+          echo "Latest=$LATEST"
 
-          CURRENT="$(tr -d '[:space:]' < "${PROJECT_DIR}/VERSION")"
-
-          if [ -n "${FORCE_VERSION:-}" ]; then
-            LATEST="${FORCE_VERSION}"
-          else
-            LATEST="$(
-              curl -fsSL "https://hub.docker.com/v2/repositories/espocrm/espocrm/tags?page_size=100" |
-              python3 -c 'import json,sys,re
-data=json.load(sys.stdin)
-versions=[]
-for item in data.get("results", []):
-    name=item.get("name","")
-    if re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", name):
-        versions.append(tuple(int(x) for x in name.split(".")))
-if not versions:
-    raise SystemExit("No semantic version tags found")
-print(".".join(str(x) for x in max(versions)))'
-          )"
-          fi
-
-          echo "current=${CURRENT}" >> "$GITHUB_OUTPUT"
-          echo "version=${LATEST}" >> "$GITHUB_OUTPUT"
-
-          if [ "${EVENT_NAME}" = "schedule" ] && [ "${CURRENT}" = "${LATEST}" ]; then
-            echo "build_needed=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "build_needed=true" >> "$GITHUB_OUTPUT"
-          fi
-
-          echo "Current: ${CURRENT}"
-          echo "Target : ${LATEST}"
-
-      - name: Set up QEMU
-        if: steps.version.outputs.build_needed == 'true'
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Buildx
-        if: steps.version.outputs.build_needed == 'true'
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Login to GHCR
-        if: steps.version.outputs.build_needed == 'true'
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
-        if: steps.version.outputs.build_needed == 'true'
+      - name: Build and push image
         uses: docker/build-push-action@v6
         with:
           context: ./espocrm-cn-single
@@ -103,43 +53,28 @@ print(".".join(str(x) for x in max(versions)))'
           push: true
           platforms: linux/amd64
           build-args: |
-            ESPOCRM_VERSION=${{ steps.version.outputs.version }}
+            ESPOCRM_VERSION=${{ steps.ver.outputs.latest }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/espocrm-cn-single:latest
-            ghcr.io/${{ github.repository_owner }}/espocrm-cn-single:${{ steps.version.outputs.version }}
-            ghcr.io/${{ github.repository_owner }}/espocrm-cn-single:espocrm-${{ steps.version.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/espocrm-cn-single:${{ steps.ver.outputs.latest }}
+            ghcr.io/${{ github.repository_owner }}/espocrm-cn-single:espocrm-${{ steps.ver.outputs.latest }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Update tracked version
-        if: steps.version.outputs.build_needed == 'true'
+      - name: Update VERSION after successful build
         shell: bash
         run: |
           set -euo pipefail
-          VERSION="${{ steps.version.outputs.version }}"
+          VERSION="${{ steps.ver.outputs.latest }}"
+          printf '%s\n' "$VERSION" > espocrm-cn-single/VERSION
+          sed -i -E "s/^ARG ESPOCRM_VERSION=.*/ARG ESPOCRM_VERSION=$VERSION/" espocrm-cn-single/Dockerfile
 
-          printf '%s\n' "${VERSION}" > "${PROJECT_DIR}/VERSION"
-          sed -i -E "s/^ARG ESPOCRM_VERSION=.*/ARG ESPOCRM_VERSION=${VERSION}/" "${PROJECT_DIR}/Dockerfile"
-
-          if git diff --quiet -- "${PROJECT_DIR}/VERSION" "${PROJECT_DIR}/Dockerfile"; then
+          if git diff --quiet -- espocrm-cn-single/VERSION espocrm-cn-single/Dockerfile; then
             exit 0
           fi
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "${PROJECT_DIR}/VERSION" "${PROJECT_DIR}/Dockerfile"
-          git commit -m "chore(espocrm): auto update to ${VERSION}"
+          git add espocrm-cn-single/VERSION espocrm-cn-single/Dockerfile
+          git commit -m "chore(espocrm): update to $VERSION"
           git push
-
-      - name: Summary
-        if: always()
-        shell: bash
-        run: |
-          {
-            echo "## EspoCRM single image"
-            echo ""
-            echo "- Current tracked version: \`${{ steps.version.outputs.current }}\`"
-            echo "- Target version: \`${{ steps.version.outputs.version }}\`"
-            echo "- Build needed: \`${{ steps.version.outputs.build_needed }}\`"
-            echo "- Image: \`ghcr.io/${{ github.repository_owner }}/espocrm-cn-single:latest\`"
-          } >> "$GITHUB_STEP_SUMMARY"
