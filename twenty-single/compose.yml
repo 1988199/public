@@ -1,0 +1,14 @@
+services:
+  twenty:
+    image: ghcr.io/1988199/twenty-single:${TWENTY_VERSION:-latest}
+    restart: unless-stopped
+    stop_grace_period: 180s
+    ports:
+      - '${HTTP_PORT:-3000}:3000'
+    environment:
+      SERVER_URL: ${SERVER_URL:-http://localhost:3000}
+    volumes:
+      - twenty-data:/data
+
+volumes:
+  twenty-data:
