@@ -7,7 +7,16 @@ on:
   push:
     branches: [main]
     paths:
-      - "erpnext-single/**"
+      - "erpnext-single/Dockerfile"
+      - "erpnext-single/compose.yaml"
+      - "erpnext-single/.dockerignore"
+      - "erpnext-single/.gitattributes"
+      - "erpnext-single/.env.example"
+      - "erpnext-single/apps/**"
+      - "erpnext-single/docker/**"
+      - "erpnext-single/scripts/**"
+      - "erpnext-single/schemas/**"
+      - "erpnext-single/.github/workflows/**"
       - ".github/workflows/erpnext-auto-build.yml"
 
 permissions:
@@ -93,7 +102,7 @@ jobs:
       - name: 验证上一版空站点备份及升级迁移
         if: steps.decision.outputs.build == 'true'
         run: |
-          previous_image="${REGISTRY_IMAGE}@sha256:5a09e06a083bafa2aaf09bd4942af0ce9168c797f0e54168e6096c5540473769"
+          previous_image="${REGISTRY_IMAGE}@sha256:511ea768d0c4fedd7da85ef0a41b0e37d2aff831be260366b87bdc763866ef4a"
           docker pull "${previous_image}"
           bash scripts/ci-smoke-test.sh "${LOCAL_IMAGE}" "${previous_image}"
 

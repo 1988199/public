@@ -2,6 +2,11 @@
 
 这是一个面向简体中文环境的 ERPNext V16 Docker 发行版。镜像构建时直接获取 Frappe、ERPNext、Frappe HRMS 和 Frappe CRM 官方 GitHub 源码；仓库保存基础设施、版本清单、中文技术文档，以及独立的中国小企业会计准则与中文补充翻译 App，不保存任何企业业务数据。
 
+- 镜像：`ghcr.io/1988199/erpnext`
+- 当前版本：Frappe `v16.35.0`、ERPNext `v16.35.0`、HRMS `v16.20.0`、CRM `v1.84.0`。
+- 访问入口：默认 `http://localhost:8080`；自定义端口通过 `HTTP_PORT` 设置。
+- 数据卷：数据库、Redis、站点文件和日志分开持久化。
+
 > 当前包含经财政部来源核对的 66 个小企业会计准则一级科目，供新建中国公司选择。它是公共标准元数据，不包含公司、期初余额、凭证或其他企业业务数据。
 
 ## 设计目标
@@ -41,6 +46,8 @@ docker compose --env-file .env.example config --quiet
 
 GitHub Actions 会在本项目文件变更及每日定时检查官方稳定版时运行。发布前测试带 `SITE_NAME`、未设置 `SITE_NAME` 的两种新建站点启动、`localhost` 页面资源，以及上一版空站点备份升级。成功后发布 `ghcr.io/1988199/erpnext:V16.35.0`、`:16.35.0` 等具体版本标签；`main` 通过测试后还发布 `:latest`。精确复现应使用成品镜像 digest。
 
+工作流位于仓库根目录 `.github/workflows/erpnext-auto-build.yml`，每天检测 Frappe、ERPNext、HRMS 和 CRM 官方稳定版本。只有候选镜像通过空站点创建、页面资源及备份迁移测试后才发布；成功之后才记录已验证的上游版本。工作流使用 GitHub Actions 的 `GITHUB_TOKEN`，不在仓库中保存访问密钥。
+
 如需试构建，先复制环境变量示例并更换密码：
 
 ```powershell
@@ -49,6 +56,16 @@ docker compose build
 docker compose up -d
 ```
 
+如需直接运行已发布镜像，可先拉取版本标签，再使用本项目 Compose 模板：
+
+```powershell
+docker pull ghcr.io/1988199/erpnext:V16.35.0
+Copy-Item .env.example .env
+docker compose up -d
+```
+
+首次启动需要一段时间完成空站点安装，可通过 `docker compose logs -f erpnext` 查看进度。默认测试管理员为 `Administrator`，初始密码读取 `ADMIN_PASSWORD`（示例值 `Pass1234`）；数据库 root 密码读取 `DB_ROOT_PASSWORD`。在 `.env` 中配置强密码后再启动。已有数据卷不会因为修改 `.env` 而自动重置站点管理员密码。
+
 首次启动会创建一个没有业务数据的站点并安装 ERPNext、HRMS、CRM 和中国小企业会计准则 App。新建国家为“中国”的公司时，可直接选择“中国小企业会计准则”。默认入口为 `http://localhost:8080`（若设置 `HTTP_PORT=8090`，则为 `http://localhost:8090`）。`SITE_NAME` 是容器内部站点名；既有卷中的 `erp.localhost` 无需改名，Nginx 会将浏览器的 `localhost` 请求转给它。
 
 当前测试镜像在未提供环境变量时，数据库 root 密码和首次建站的 ERPNext `Administrator` 密码均默认为 `Pass1234`。可分别通过 `DB_ROOT_PASSWORD` 和 `ADMIN_PASSWORD` 覆盖。管理员默认密码只在创建新站点时写入，不会重置已有数据卷内的站点密码。该测试例外不得用于正式环境或对外联网部署。
@@ -56,6 +73,8 @@ docker compose up -d
 ## 重要限制
 
 单容器是明确的产品约束，适合单机部署、内部测试和 PoC，但数据库、缓存与应用无法独立扩缩容或滚动升级。正式上线前必须完成备份恢复、容量、并发、崩溃恢复和安全测试。官方 Frappe Docker 的生产推荐仍是多服务拓扑。
+
+升级前先按[升级指南](docs/升级指南.md)备份数据库、站点文件及当前版本信息，再拉取目标版本并按计划升级。不要删除 Docker 数据卷；回退镜像不一定兼容已经迁移过的数据库。Compose 服务只映射主机端口到容器，容器内部站点目录名（默认 `erp.localhost`）不需要与浏览器地址相同。
 
 详细说明见 [Docker 基础架构设计](docs/Docker基础架构设计.md)、[版本清单](docs/版本清单.md)、[中国小企业会计准则 App 设计](docs/中国小企业会计准则App设计.md)、[私有企业初始化方案](docs/私有企业初始化方案.md)、[架构说明](docs/架构说明.md)、[扩展接口](docs/扩展接口.md)、[升级指南](docs/升级指南.md) 和 [安全与数据边界](docs/安全与数据边界.md)。
 
