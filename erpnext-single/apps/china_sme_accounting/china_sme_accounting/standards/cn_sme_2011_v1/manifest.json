@@ -1,0 +1,21 @@
+{
+  "standard_code": "CN-SME-2011-v1",
+  "app_version": "0.1.0",
+  "verified_on": "2026-08-19",
+  "account_count": 66,
+  "accounts_sha256": "25e1779d90acdd25d69612ebba32b048d09139e8eec8959890f5807381518fac",
+  "sources": [
+    {
+      "authority": "中华人民共和国财政部",
+      "title": "小企业会计准则——会计科目、主要账务处理和财务报表",
+      "url": "https://kjs.mof.gov.cn/zhengcefabu/201111/P020111118325852734144.pdf",
+      "use": "66个一级会计科目、编号和名称"
+    },
+    {
+      "authority": "中华人民共和国财政部",
+      "title": "关于印发《增值税会计处理规定》的通知（财会〔2016〕22号）",
+      "url": "https://kjs.mof.gov.cn/zhengcefabu/201612/t20161212_2479869.htm",
+      "use": "将5403科目名称更新为税金及附加"
+    }
+  ]
+}

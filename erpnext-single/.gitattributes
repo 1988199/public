@@ -1,0 +1,4 @@
+# 保持构建脚本可执行，并让标准科目文件的校验值跨平台一致。
+*.sh text eol=lf
+*.json text eol=lf
+Dockerfile text eol=lf

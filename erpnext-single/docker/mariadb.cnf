@@ -1,0 +1,13 @@
+[client]
+default-character-set = utf8mb4
+
+[mariadb]
+bind-address = 127.0.0.1
+character-set-server = utf8mb4
+collation-server = utf8mb4_unicode_ci
+skip-character-set-client-handshake
+transaction-isolation = READ-COMMITTED
+max-allowed-packet = 256M
+innodb-buffer-pool-size = 1G
+innodb-flush-log-at-trx-commit = 1
+

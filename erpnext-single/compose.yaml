@@ -1,0 +1,37 @@
+name: ${COMPOSE_PROJECT_NAME:-erpnext-v16-cn}
+
+services:
+  erpnext:
+    image: ${IMAGE_NAME:-erpnext-v16-cn:local}
+    build:
+      context: .
+      args:
+        FRAPPE_REF: v16.35.0
+      # 中国会计 App 应通过 BuildKit secret 注入，参见 docs/扩展接口.md。
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 2m
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    environment:
+      SITE_NAME: ${SITE_NAME:-erp.localhost}
+      DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-Pass1234}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Pass1234}
+      TZ: ${TZ:-Asia/Shanghai}
+    volumes:
+      - database:/var/lib/mysql
+      - redis:/var/lib/redis
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
+
+volumes:
+  database:
+  redis:
+  sites:
+  logs:

@@ -1,0 +1,89 @@
+Sign In,登录
+Welcome! Please sign in to continue.,欢迎！请登录后继续。
+Forgot password?,忘记密码？
+Back to sign in,返回登录
+Login with password,使用密码登录
+Didn't receive the link?,没有收到链接？
+Create Account,创建账户
+Complete your registration,完成注册
+Let's setup your account.,让我们完成账户设置。
+"Invalid credentials, try again.",登录信息无效，请重试。
+Invalid or expired key,链接无效或已过期
+Email is required.,请输入电子邮件地址。
+Password is required.,请输入密码。
+Full name is required.,请输入姓名。
+Add New,新建
+Add row,添加行
+Delete row,删除行
+Duplicate row,复制行
+Duplicate rows,复制多行
+Edit row,编辑行
+Attach Files,添加附件
+Clear all filters,清除全部筛选条件
+Clear cache and reload,清除缓存并重新加载
+Configure,配置
+Desktop,桌面
+Desktop Settings,桌面设置
+Edit Filter,编辑筛选条件
+Edit Sidebar,编辑侧边栏
+Filter Area,筛选区域
+Getting Started,开始使用
+Health Report,运行状况报告
+My Workspaces,我的工作区
+Open Global Search,打开全局搜索
+Open Link,打开链接
+Permission,权限
+Pinned,已固定
+Pin,固定
+Unpin,取消固定
+No rows selected,尚未选择任何行
+No matching entries in the current results,当前结果中没有匹配项
+No editable fields available for bulk edit.,没有可批量编辑的字段。
+Are you sure you want to log out?,确定要退出登录吗？
+Are you sure you want to delete all {0} rows?,确定要删除全部 {0} 行吗？
+Copied {0} {1} to clipboard,已将 {0} {1} 复制到剪贴板
+File upload failed.,文件上传失败。
+Open Frappe CRM,打开 CRM
+Activities,活动
+Add Lead,添加线索
+Add Deal,添加商机
+Add Contact,添加联系人
+Add Organization,添加组织
+Access Denied,拒绝访问
+Account Info & Security,账户信息与安全
+Activity Timeline,活动时间线
+Add Attendee,添加参与者
+Add Chart,添加图表
+Add Condition,添加条件
+Add Condition Group,添加条件组
+Add Description,添加描述
+Add Description.,添加描述。
+Add Email,添加电子邮件
+Add Location,添加地点
+Add Mobile Number...,添加手机号码……
+Add Note,添加备注
+Accept Call,接听电话
+A {0} cannot report to a {1},{0} 不能向 {1} 汇报
+Access token is required,必须提供访问令牌
+Add ({0}),添加（{0}）
+Automation,自动化
+Background Job,后台任务
+Calendar Event,日历事件
+Create Saved Filter,创建已保存的筛选条件
+Customize Quick Filters,自定义快速筛选
+Days Remaining,剩余天数
+Email Sent,电子邮件已发送
+Expires,到期时间
+First Seen,首次出现
+Last Seen,最后出现
+Last Edited By You,最后由你编辑
+Last Edited By {0},最后由 {0} 编辑
+Created By You,由你创建
+Created By {0},由 {0} 创建
+Loading error stats...,正在加载错误统计……
+More Options,更多选项
+Next Actions,后续操作
+Not configured,尚未配置
+Not permitted. {0}.,无权执行此操作：{0}。
+Only System Managers can make this file public.,只有系统管理员可以将此文件设为公开。
+Search or type a command,搜索或输入命令

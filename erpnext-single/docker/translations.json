@@ -1,0 +1,21 @@
+{
+  "language": "zh",
+  "minimum_entries": 5700,
+  "sources": [
+    {
+      "name": "frappe-v16.24.4-zh",
+      "url": "https://raw.githubusercontent.com/frappe/frappe/v16.24.4/frappe/locale/zh.po",
+      "sha256": "b0d107adf4e064622b03aefed46e5d3a06c6daae05cca0a4d5d07fb1e5fef586",
+      "license": "GPL-3.0",
+      "upstream_issue": "https://github.com/frappe/frappe/issues/41461"
+    }
+  ],
+  "required_translations": {
+    "Cancel": "取消",
+    "Continue": "继续",
+    "Login with Email Link": "通过邮箱链接登录",
+    "Save": "保存",
+    "Search": "搜索",
+    "Submit": "提交"
+  }
+}

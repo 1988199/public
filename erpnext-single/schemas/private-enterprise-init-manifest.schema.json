@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/private-enterprise-init-manifest.schema.json",
+  "title": "ERPNext 私有企业初始化清单",
+  "description": "只描述初始化包的版本、目标约束、步骤和文件哈希，不承载企业业务数据。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["apiVersion", "kind", "metadata", "target", "requirements", "spec"],
+  "properties": {
+    "apiVersion": {
+      "const": "erpnext-distribution/v1alpha1"
+    },
+    "kind": {
+      "const": "EnterpriseInitialization"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packageId", "version"],
+      "properties": {
+        "packageId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{2,62}$"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 200
+        }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["environment", "siteFingerprint"],
+      "properties": {
+        "environment": {
+          "enum": ["development", "test", "staging", "production"]
+        },
+        "siteFingerprint": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "companyExternalId": {
+          "type": "string",
+          "maxLength": 140
+        }
+      }
+    },
+    "requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["imageDigest", "apps"],
+      "properties": {
+        "imageDigest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "apps": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "version"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$"
+              },
+              "version": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              }
+            }
+          }
+        }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "steps"],
+      "properties": {
+        "mode": {
+          "enum": ["bootstrap", "master-data", "cutover"]
+        },
+        "approvalPolicy": {
+          "enum": ["none", "single", "dual-control"]
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/step"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "payload", "sha256", "policy", "reversible"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{2,62}$"
+        },
+        "type": {
+          "enum": [
+            "site-settings",
+            "company",
+            "fiscal-periods",
+            "accounting",
+            "dimensions",
+            "organization",
+            "roles",
+            "users",
+            "master-data",
+            "opening-balances",
+            "integration-references",
+            "verification"
+          ]
+        },
+        "payload": {
+          "type": "string",
+          "pattern": "^(?!/)(?!.*\\.\\.)[a-zA-Z0-9_./-]+\\.(json|yaml|yml|csv)$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "policy": {
+          "enum": ["create-only", "upsert-explicit", "verify-only"]
+        },
+        "reversible": {
+          "type": "boolean"
+        },
+        "requiresApproval": {
+          "type": "boolean",
+          "default": false
+        },
+        "dependsOn": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{2,62}$"
+          }
+        }
+      }
+    }
+  }
+}

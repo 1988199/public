@@ -1,0 +1,9 @@
+[
+  {
+    "name": "china_sme_accounting",
+    "url": "https://example.invalid/your-org/china-sme-accounting.git",
+    "ref": "v1.0.0",
+    "install_on_new_site": true
+  }
+]
+
