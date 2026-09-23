@@ -1,0 +1,187 @@
+name: 构建并测试 Docker 镜像
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "43 2 * * *"
+  push:
+    branches:
+      - main
+      - "agent/**"
+    paths:
+      - Dockerfile
+      - compose.yaml
+      - "docker/**"
+      - "scripts/ci-smoke-test.sh"
+      - "scripts/check-image-web.py"
+      - "scripts/validate.py"
+      - "scripts/detect-latest.py"
+      - ".gitattributes"
+      - ".dockerignore"
+      - "apps/**"
+      - ".github/workflows/image.yml"
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: image-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-test-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      LOCAL_IMAGE: myerp-ci:${{ github.sha }}
+      REGISTRY_IMAGE: ghcr.io/${{ github.repository }}
+      ERP_IMAGE: ghcr.io/${{ github.repository_owner }}/erpnext
+    steps:
+      - name: 检出源码
+        uses: actions/checkout@v4
+
+      - name: 清理 Runner 预置 Docker 缓存
+        run: docker system prune --all --force
+
+      - name: 检查官方 V16 稳定版本
+        id: upstream
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ "${GITHUB_REF}" == "refs/heads/main" && "${GITHUB_EVENT_NAME}" != push ]]; then
+            python3 scripts/detect-latest.py
+          else
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 登录 GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 判断是否需要重新构建
+        id: decision
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ "${GITHUB_EVENT_NAME}" == schedule && "${{ steps.upstream.outputs.changed }}" == false ]] \
+            && docker manifest inspect "${ERP_IMAGE}:latest" >/dev/null 2>&1; then
+            echo 'build=false' >> "$GITHUB_OUTPUT"
+            echo '官方版本未更新，已存在 latest 镜像，本次跳过构建。' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'build=true' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 检查构建配置及公共数据边界
+        if: steps.decision.outputs.build == 'true'
+        run: |
+          python3 scripts/validate.py
+          docker compose --env-file .env.example config --quiet
+
+      - name: 使用 Docker Engine 构建镜像
+        if: steps.decision.outputs.build == 'true'
+        env:
+          DOCKER_BUILDKIT: "1"
+        run: docker build --progress=plain --tag "${LOCAL_IMAGE}" .
+
+      - name: 启动空站点并执行烟雾测试
+        if: steps.decision.outputs.build == 'true'
+        run: bash scripts/ci-smoke-test.sh "${LOCAL_IMAGE}"
+
+      - name: 验证未设置 SITE_NAME 时的手动启动
+        if: steps.decision.outputs.build == 'true'
+        run: CI_SITE_NAME=erp.localhost CI_OMIT_SITE_NAME=1 bash scripts/ci-smoke-test.sh "${LOCAL_IMAGE}"
+
+      - name: 验证上一版空站点备份及升级迁移
+        if: steps.decision.outputs.build == 'true'
+        run: |
+          previous_image="${REGISTRY_IMAGE}@sha256:b8411ba9066443928af892dd85706a6e9a49ab4cf0fd2c0d0fa76951c1d0b828"
+          docker pull "${previous_image}"
+          bash scripts/ci-smoke-test.sh "${LOCAL_IMAGE}" "${previous_image}"
+
+      - name: 发布通过测试的镜像
+        if: steps.decision.outputs.build == 'true'
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          sha_tag="${REGISTRY_IMAGE}:sha-${GITHUB_SHA}"
+          run_tag="${REGISTRY_IMAGE}:build-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          version="$(jq -r '.[] | select(.name == "erpnext") | .ref | ltrimstr("v")' docker/apps.json)"
+          [[ "$version" =~ ^16\.[0-9]+\.[0-9]+$ ]]
+          version_tag="${REGISTRY_IMAGE}:${version}"
+          erp_version_tag="${ERP_IMAGE}:${version}"
+          erp_v_tag="${ERP_IMAGE}:V${version}"
+          docker tag "${LOCAL_IMAGE}" "${sha_tag}"
+          docker push "${sha_tag}"
+          docker tag "${LOCAL_IMAGE}" "${run_tag}"
+          docker push "${run_tag}"
+          docker tag "${LOCAL_IMAGE}" "${version_tag}"
+          docker push "${version_tag}"
+          docker tag "${LOCAL_IMAGE}" "${erp_version_tag}"
+          docker push "${erp_version_tag}"
+          docker tag "${LOCAL_IMAGE}" "${erp_v_tag}"
+          docker push "${erp_v_tag}"
+
+          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
+            docker tag "${LOCAL_IMAGE}" "${ERP_IMAGE}:latest"
+            docker push "${ERP_IMAGE}:latest"
+            docker tag "${LOCAL_IMAGE}" "${REGISTRY_IMAGE}:v${version}"
+            docker push "${REGISTRY_IMAGE}:v${version}"
+            docker tag "${LOCAL_IMAGE}" "${REGISTRY_IMAGE}:v16"
+            docker push "${REGISTRY_IMAGE}:v16"
+          fi
+
+          # 从仓库重新读取摘要，避免把本地镜像 ID 当成分发摘要。
+          docker pull "${run_tag}"
+          digest_ref="$(docker image inspect "${run_tag}" --format '{{json .RepoDigests}}' |
+            jq -er --arg prefix "${REGISTRY_IMAGE}@sha256:" 'map(select(startswith($prefix))) | first')"
+          [[ "${digest_ref}" == "${REGISTRY_IMAGE}@sha256:"* ]]
+          mkdir -p release-info
+          {
+            echo "# 已通过测试的镜像"
+            echo
+            echo "源码提交：${GITHUB_SHA}"
+            echo "本次构建：${run_tag}"
+            echo "ERPNext 版本标签：${erp_version_tag}"
+            echo "大写 V 标签：${erp_v_tag}"
+            echo "镜像摘要：${digest_ref}"
+            echo
+            echo '```powershell'
+            echo "docker pull ${run_tag}"
+            echo "docker pull ${erp_version_tag}"
+            echo "docker pull ${ERP_IMAGE}:latest"
+            echo '```'
+            echo
+            echo '已通过空站点安装、旧版空站点备份升级、应用版本、中文关键译文及页面资源检查。'
+            echo '本流程只发布镜像，不部署或改动企业站点。'
+          } | tee release-info/镜像说明.md >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: 保存镜像拉取信息
+        if: steps.decision.outputs.build == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-info-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release-info/
+          retention-days: 90
+
+      - name: 记录自动验证通过的官方版本
+        if: github.ref == 'refs/heads/main' && steps.upstream.outputs.changed == 'true' && steps.decision.outputs.build == 'true'
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Dockerfile compose.yaml docker/apps.json docker/upstream.lock.json docs/版本清单.md
+          git commit -m 'chore: record verified official V16 releases [skip ci]'
+          git push origin HEAD:main
+
+      - name: 失败时输出构建环境摘要
+        if: failure()
+        run: |
+          docker version || true
+          docker system df || true
