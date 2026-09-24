@@ -101,9 +101,11 @@ def main() -> None:
         apps_path.write_text(json.dumps(apps, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
         LOCK.write_text(json.dumps(candidate, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
         version_path = ROOT / "docs/版本清单.md"
-        for app, label in (("frappe", "Frappe"), ("erpnext", "ERPNext"), ("hrms", "HRMS"), ("crm", "CRM")):
-            item = candidate[app]
-            replace_once(version_path, rf"^\| {label} \| v\d+\.\d+\.\d+ \| [0-9a-f]{{40}} \|$", f"| {label} | {item['ref']} | {item['sha']} |")
+        replace_once(
+            version_path,
+            r"^当前 ERPNext 稳定版本：`v\d+\.\d+\.\d+`$",
+            f"当前 ERPNext 稳定版本：`{candidate['erpnext']['ref']}`",
+        )
 
     output = os.environ.get("GITHUB_OUTPUT")
     if output:
@@ -114,3 +116,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
