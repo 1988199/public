@@ -5,7 +5,12 @@ on:
     branches:
       - main
     paths:
-      - "espocrm-cn-single/**"
+      - "espocrm-cn-single/Dockerfile"
+      - "espocrm-cn-single/docker-compose.yml"
+      - "espocrm-cn-single/config/**"
+      - "espocrm-cn-single/scripts/**"
+      - "espocrm-cn-single/.env.example"
+      - "espocrm-cn-single/VERSION"
       - ".github/workflows/espocrm-auto-build.yml"
   workflow_dispatch:
   schedule:
@@ -45,7 +50,27 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Decide whether to build and publish
+        id: decision
+        env:
+          CURRENT: ${{ steps.ver.outputs.current }}
+          LATEST: ${{ steps.ver.outputs.latest }}
+          EVENT: ${{ github.event_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/espocrm-cn-single"
+          BUILD=true
+          if [[ "$EVENT" == schedule && "$CURRENT" == "$LATEST" ]] \
+            && docker buildx imagetools inspect "$IMAGE:latest" >/dev/null 2>&1 \
+            && docker buildx imagetools inspect "$IMAGE:$LATEST" >/dev/null 2>&1 \
+            && docker buildx imagetools inspect "$IMAGE:espocrm-$LATEST" >/dev/null 2>&1; then
+            BUILD=false
+          fi
+          echo "build=$BUILD" >> "$GITHUB_OUTPUT"
+
       - name: Build and push image
+        if: steps.decision.outputs.build == 'true'
         uses: docker/build-push-action@v6
         with:
           context: ./espocrm-cn-single
@@ -62,6 +87,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Update VERSION after successful build
+        if: steps.decision.outputs.build == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -76,5 +102,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add espocrm-cn-single/VERSION espocrm-cn-single/Dockerfile
-          git commit -m "chore(espocrm): update to $VERSION"
+          git commit -m "chore(espocrm): update to $VERSION [skip ci]"
           git push

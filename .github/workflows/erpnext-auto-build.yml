@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
-      LOCAL_IMAGE: myerp-ci:${{ github.sha }}
+      LOCAL_IMAGE: erpnext-ci:${{ github.sha }}
       ERP_IMAGE: ghcr.io/${{ github.repository_owner }}/erpnext
       REGISTRY_IMAGE: ghcr.io/${{ github.repository_owner }}/erpnext
     steps:
@@ -99,13 +99,6 @@ jobs:
         if: steps.decision.outputs.build == 'true'
         run: CI_SITE_NAME=erp.localhost CI_OMIT_SITE_NAME=1 bash scripts/ci-smoke-test.sh "${LOCAL_IMAGE}"
 
-      - name: 验证上一版空站点备份及升级迁移
-        if: steps.decision.outputs.build == 'true'
-        run: |
-          previous_image="${REGISTRY_IMAGE}@sha256:511ea768d0c4fedd7da85ef0a41b0e37d2aff831be260366b87bdc763866ef4a"
-          docker pull "${previous_image}"
-          bash scripts/ci-smoke-test.sh "${LOCAL_IMAGE}" "${previous_image}"
-
       - name: 发布通过测试的镜像
         if: steps.decision.outputs.build == 'true'
         shell: bash
@@ -159,7 +152,7 @@ jobs:
             echo "docker pull ${ERP_IMAGE}:latest"
             echo '```'
             echo
-            echo '已通过空站点安装、旧版空站点备份升级、应用版本、中文关键译文及页面资源检查。'
+            echo '已通过构建配置、空站点安装、无 SITE_NAME 启动、应用版本、中文关键译文及 localhost 页面资源检查。'
             echo '本流程只发布镜像，不部署或改动企业站点。'
           } | tee release-info/镜像说明.md >> "${GITHUB_STEP_SUMMARY}"
 

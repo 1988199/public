@@ -23,7 +23,7 @@ SOURCES = {
 def api(path: str) -> object:
     headers = {
         "Accept": "application/vnd.github+json",
-        "User-Agent": "myerp-v16-release-builder",
+        "User-Agent": "erpnext-v16-release-builder",
     }
     if token := os.environ.get("GH_TOKEN"):
         headers["Authorization"] = f"Bearer {token}"
