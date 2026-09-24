@@ -91,6 +91,10 @@ jobs:
           DOCKER_BUILDKIT: "1"
         run: docker build --progress=plain --tag "${LOCAL_IMAGE}" .
 
+      - name: 检查镜像只声明网页端口
+        if: steps.decision.outputs.build == 'true'
+        run: docker image inspect "${LOCAL_IMAGE}" --format '{{json .Config.ExposedPorts}}' | jq -e 'keys == ["80/tcp"]'
+
       - name: 启动空站点并执行烟雾测试
         if: steps.decision.outputs.build == 'true'
         run: bash scripts/ci-smoke-test.sh "${LOCAL_IMAGE}"

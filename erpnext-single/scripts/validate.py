@@ -124,6 +124,9 @@ def main() -> int:
             not in dockerfile
         ):
             fail("frappe/bench 基础镜像必须固定到 v5.31.0 及已验证 digest", errors)
+        exposed_ports = re.findall(r"^EXPOSE\s+(.+)$", dockerfile, re.M)
+        if exposed_ports != ["80"] or "FROM scratch AS runtime" not in dockerfile:
+            fail("最终镜像只能声明 80 端口，并且不得继承 bench 开发端口", errors)
         if "cn_small_enterprise_accounting_standard.json" not in dockerfile:
             fail("Dockerfile 必须注册中国小企业会计准则模板", errors)
         if "--available-list /home/frappe/frappe-bench/apps-available.json" not in dockerfile:

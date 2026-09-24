@@ -1,5 +1,5 @@
 ARG BENCH_IMAGE=frappe/bench:v5.31.0@sha256:6df74bce06ab017aa350a16ffdc7aff4559a4a1bf3d785d8e552dacc19b5f0e7
-FROM ${BENCH_IMAGE}
+FROM ${BENCH_IMAGE} AS build
 
 ARG FRAPPE_REF=v16.35.0
 ARG FRAPPE_REPO=https://github.com/frappe/frappe.git
@@ -67,6 +67,19 @@ RUN --mount=type=secret,id=extra_apps,required=false,uid=1000 \
 USER root
 # 将构建产物清单及公共静态资源保存在 sites 持久卷之外，供升级时同步。
 RUN cp -a /home/frappe/frappe-bench/sites/assets /opt/erpnext-assets
+
+# frappe/bench 为开发环境声明了 6787、8000-8005、9000-9005。
+# 用 scratch 作为最终阶段，仅复制根文件系统，不继承这些开发端口元数据。
+FROM scratch AS runtime
+COPY --from=build / /
+
+ENV DB_ROOT_PASSWORD=Pass1234 \
+    ADMIN_PASSWORD=Pass1234 \
+    PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+    NVM_DIR=/home/frappe/.nvm
+
+USER root
+WORKDIR /home/frappe/frappe-bench
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint
 COPY docker/healthcheck.sh /usr/local/bin/healthcheck
 COPY docker/supervisord.conf /etc/supervisor/conf.d/erpnext.conf

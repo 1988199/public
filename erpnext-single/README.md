@@ -22,6 +22,8 @@ docker compose logs -f erpnext
 
 首次启动会初始化空站点。默认浏览器入口为 `http://localhost:8080`；自定义端口请修改 `HTTP_PORT`。Compose 会将数据库、Redis、站点文件和日志分别保存在 Docker volumes 中。
 
+容器镜像仅声明网页端口 `80`，默认映射为宿主机 `8080:80`。Gunicorn 和 Socket.IO 使用的 `8000`、`9000` 仅供容器内部 Nginx 通信，不发布到宿主机。
+
 ## 自动更新与发布
 
 公共仓库的 GitHub Actions 每天北京时间 **10:43** 检查 Frappe、ERPNext、HRMS 和 CRM 的官方稳定版，也可手动运行。发现上游版本更新后，自动生成候选镜像并检查配置、空站点安装、两种 `SITE_NAME` 启动方式及网页资源。检查通过后才发布版本标签和 `latest`，并记录已验证的上游版本；版本未变且已有 `latest` 时，定时任务跳过构建。
