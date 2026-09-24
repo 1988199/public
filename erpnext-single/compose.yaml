@@ -2,7 +2,7 @@ name: ${COMPOSE_PROJECT_NAME:-erpnext-v16-cn}
 
 services:
   erpnext:
-    image: ${IMAGE_NAME:-erpnext-v16-cn:local}
+    image: ${IMAGE_NAME:-ghcr.io/1988199/erpnext-single:latest}
     build:
       context: .
       args:

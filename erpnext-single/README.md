@@ -2,14 +2,14 @@
 
 基于 ERPNext、Frappe Framework、Frappe HRMS 和 Frappe CRM 官方源码构建的单容器 Docker 镜像，提供简体中文环境及中国小企业会计准则科目表。
 
-镜像：`ghcr.io/1988199/erpnext`
+镜像：`ghcr.io/1988199/erpnext-single`
 
 发布标签包括 ERPNext 版本号（如 `V16.35.0`、`16.35.0`）和 `latest`。当前上游版本见 [`docker/upstream.lock.json`](docker/upstream.lock.json)。
 
 ## 快速开始
 
 1. 下载本目录的 Compose 配置及环境变量示例。
-2. 将 `.env.example` 复制为 `.env`，设置管理员密码和数据库密码；将 `IMAGE_NAME` 设为要使用的镜像标签，例如 `ghcr.io/1988199/erpnext:latest`。
+2. 将 `.env.example` 复制为 `.env`，设置管理员密码和数据库密码；将 `IMAGE_NAME` 设为要使用的镜像标签，例如 `ghcr.io/1988199/erpnext-single:latest`。
 3. 启动容器：
 
 ```powershell
