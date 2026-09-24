@@ -44,9 +44,18 @@ python scripts/validate.py
 docker compose --env-file .env.example config --quiet
 ```
 
-GitHub Actions 会在本项目文件变更及每日定时检查官方稳定版时运行。发布前测试带 `SITE_NAME`、未设置 `SITE_NAME` 的两种新建站点启动、`localhost` 页面资源，以及上一版空站点备份升级。成功后发布 `ghcr.io/1988199/erpnext:V16.35.0`、`:16.35.0` 等具体版本标签；`main` 通过测试后还发布 `:latest`。精确复现应使用成品镜像 digest。
+### 自动检查、重建与发布
 
-工作流位于仓库根目录 `.github/workflows/erpnext-auto-build.yml`，每天检测 Frappe、ERPNext、HRMS 和 CRM 官方稳定版本。只有候选镜像通过空站点创建、页面资源及备份迁移测试后才发布；成功之后才记录已验证的上游版本。工作流使用 GitHub Actions 的 `GITHUB_TOKEN`，不在仓库中保存访问密钥。
+此功能已实现在仓库根目录的 `.github/workflows/erpnext-auto-build.yml`，不是仅供规划的后续事项。
+
+- **检查时间：**每天 UTC 02:43（北京时间 10:43）自动运行；也支持手动触发。运行代码或构建配置变更时同样会触发。
+- **检查来源：**读取 Frappe、ERPNext、HRMS、CRM 官方 GitHub Release，过滤预发布版本，并按各自版本线选取最新稳定版；同时核对版本标签对应的源码提交。
+- **版本未变：**若官方版本没有前进且 GHCR 中已有 `latest`，定时任务跳过构建；手动运行或代码变更仍会重新验证。
+- **发现新版本：**更新候选版本清单后，从官方源码构建镜像，并依次测试配置、空站点创建、未设置 `SITE_NAME` 的启动、`localhost` 页面资源，以及上一版空站点备份迁移。任一检查失败时，不发布 `latest`，也不把候选版本记录为已验证版本。
+- **全部通过后：**发布版本标签（例如 `V16.35.0` 和 `16.35.0`）及 `latest`，然后提交已验证的上游版本锁定信息。镜像名为 `ghcr.io/1988199/erpnext`；精确复现建议固定实际发布摘要（digest）。
+- **权限要求：**工作流使用 `GITHUB_TOKEN`，需要 `contents: write` 与 `packages: write`；密钥不写入仓库。GitHub 不会因工作流声明 `packages: write` 就自动授予它访问另一个仓库关联的既有 GHCR 包。
+
+**当前发布状态：**自动检查和构建测试逻辑已经存在；但目前 `ghcr.io/1988199/erpnext` 是私有 GHCR 包，并关联私有仓库 `1988199/myerp`。`1988199/public` 的 Actions 尚未获得该包的访问权，因此当前运行在拉取上一版迁移基线时失败，镜像发布步骤尚未通过验证。需要在 GHCR 包设置中单独授权 `1988199/public` 的 Actions 访问（可以保持包为私有），之后才能完成端到端的自动迁移测试和发布验证。此权限尚未擅自修改。
 
 如需试构建，先复制环境变量示例并更换密码：
 
