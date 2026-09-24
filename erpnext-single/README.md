@@ -4,7 +4,7 @@
 
 镜像：`ghcr.io/1988199/erpnext-single`
 
-发布标签包括 ERPNext 版本号（如 `V16.36.0`、`16.36.0`）和 `latest`。当前上游版本见 [`docker/upstream.lock.json`](docker/upstream.lock.json)。
+发布标签包括带 `V` 前缀的 ERPNext 版本号（如 `V16.36.0`）和 `latest`。当前上游版本见 [`docker/upstream.lock.json`](docker/upstream.lock.json)。
 
 ## 快速开始
 

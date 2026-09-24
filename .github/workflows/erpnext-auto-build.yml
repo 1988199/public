@@ -112,19 +112,13 @@ jobs:
           run_tag="${REGISTRY_IMAGE}:build-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           version="$(jq -r '.[] | select(.name == "erpnext") | .ref | ltrimstr("v")' docker/apps.json)"
           [[ "$version" =~ ^16\.[0-9]+\.[0-9]+$ ]]
-          version_tag="${REGISTRY_IMAGE}:${version}"
-          erp_version_tag="${ERP_IMAGE}:${version}"
-          erp_v_tag="${ERP_IMAGE}:V${version}"
+          erp_version_tag="${ERP_IMAGE}:V${version}"
           docker tag "${LOCAL_IMAGE}" "${sha_tag}"
           docker push "${sha_tag}"
           docker tag "${LOCAL_IMAGE}" "${run_tag}"
           docker push "${run_tag}"
-          docker tag "${LOCAL_IMAGE}" "${version_tag}"
-          docker push "${version_tag}"
           docker tag "${LOCAL_IMAGE}" "${erp_version_tag}"
           docker push "${erp_version_tag}"
-          docker tag "${LOCAL_IMAGE}" "${erp_v_tag}"
-          docker push "${erp_v_tag}"
 
           if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
             docker tag "${LOCAL_IMAGE}" "${ERP_IMAGE}:latest"
@@ -147,7 +141,6 @@ jobs:
             echo "源码提交：${GITHUB_SHA}"
             echo "本次构建：${run_tag}"
             echo "ERPNext 版本标签：${erp_version_tag}"
-            echo "大写 V 标签：${erp_v_tag}"
             echo "镜像摘要：${digest_ref}"
             echo
             echo '```powershell'
@@ -184,3 +177,4 @@ jobs:
         run: |
           docker version || true
           docker system df || true
+
