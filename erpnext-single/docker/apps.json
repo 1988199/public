@@ -14,8 +14,7 @@
   {
     "name": "crm",
     "url": "https://github.com/frappe/crm.git",
-    "ref": "v1.85.0",
+    "ref": "v1.85.1",
     "install_on_new_site": true
   }
 ]
-
