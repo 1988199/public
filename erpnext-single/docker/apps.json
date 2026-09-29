@@ -2,7 +2,7 @@
   {
     "name": "erpnext",
     "url": "https://github.com/frappe/erpnext.git",
-    "ref": "v16.36.0",
+    "ref": "v16.36.1",
     "install_on_new_site": true
   },
   {
