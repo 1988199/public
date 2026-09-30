@@ -1,13 +1,13 @@
 {
   "frappe": {
     "repository": "frappe/frappe",
-    "ref": "v16.35.0",
-    "sha": "012667b9c4e7f66d5e1ff5858d2e922331d4300a"
+    "ref": "v16.36.0",
+    "sha": "f3f0c0b13c77a419487150a198fed42964e1919e"
   },
   "erpnext": {
     "repository": "frappe/erpnext",
-    "ref": "v16.36.1",
-    "sha": "fb78e58b8c037bcff4f90b7361ad81ff7b1c42ba"
+    "ref": "v16.37.0",
+    "sha": "af63cde4941570ec7b9e12422c68302762cfcf91"
   },
   "hrms": {
     "repository": "frappe/hrms",

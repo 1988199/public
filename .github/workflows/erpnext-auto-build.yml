@@ -158,7 +158,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: image-info-${{ github.run_id }}-${{ github.run_attempt }}
-          path: release-info/
+          path: erpnext-single/release-info/
           retention-days: 90
 
       - name: 记录自动验证通过的官方版本
@@ -170,7 +170,12 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add Dockerfile compose.yaml docker/apps.json docker/upstream.lock.json docs/版本清单.md
           git commit -m 'chore: record verified official V16 releases [skip ci]'
-          git push origin HEAD:main
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then exit 0; fi
+            sleep 5
+          done
+          exit 1
 
       - name: 失败时输出构建环境摘要
         if: failure()

@@ -29,7 +29,7 @@ start() {
 sql() { docker exec -u postgres "$name" psql -h /run/postgresql -U postgres -d default -v ON_ERROR_STOP=1 "$@"; }
 docker volume create "$volume" >/dev/null
 start
-docker exec "$name" curl -fsS http://localhost:3000/ | grep -qi '<html'
+docker exec "$name" curl -fsS -H 'Accept: text/html' http://localhost:3000/ | grep -qi '<html'
 docker exec "$name" supervisorctl -c /etc/twenty-single/supervisord.conf status
 sql -c "CREATE TABLE public.single_image_smoke (value text); INSERT INTO public.single_image_smoke VALUES ('persistent');"
 docker exec "$name" redis-cli SET single-image-smoke persistent
