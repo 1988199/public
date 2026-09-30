@@ -1,0 +1,42 @@
+name: ERPNext 升级兼容性验证
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [".github/workflows/erpnext-upgrade-test.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: erpnext-upgrade-validation
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: erpnext-single
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: 拉取待验证的公开镜像
+        run: |
+          set -Eeuo pipefail
+          version="$(jq -r '.[] | select(.name == "erpnext") | .ref | ltrimstr("v")' docker/apps.json)"
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/erpnext-single:V${version}"
+          docker pull "ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/erpnext-single:V16.36.1"
+          for attempt in $(seq 1 60); do
+            if docker pull "$image"; then
+              echo "CANDIDATE_IMAGE=$image" >> "$GITHUB_ENV"
+              exit 0
+            fi
+            sleep 10
+          done
+          exit 1
+      - name: 备份临时站点并验证升级和中文页面
+        run: |
+          bash scripts/ci-smoke-test.sh "$CANDIDATE_IMAGE" "ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/erpnext-single:V16.36.1"
