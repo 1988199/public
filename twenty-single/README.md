@@ -25,3 +25,8 @@ GitHub Actions 每天北京时间 **10:43** 检查 Twenty 官方稳定版，也�
 `/data` 保存 PostgreSQL、Redis、附件和自动生成的实例密钥。容器更新时复用原数据卷；备份和恢复时应完整保留该目录内容。
 
 上游项目：[Twenty](https://github.com/twentyhq/twenty)。Twenty 及容器内组件分别遵循各自许可证。
+
+
+## 更新记录
+
+[2026-09-30 镜像更新清单](../docs/更新清单/2026-09-30.md)

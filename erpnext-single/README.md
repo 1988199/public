@@ -38,3 +38,8 @@ docker compose logs -f erpnext
 
 上游项目分别遵循其各自许可证；本项目的许可证见 [`LICENSE`](LICENSE)。
 
+
+
+## 更新记录
+
+[2026-09-30 镜像更新清单](../docs/更新清单/2026-09-30.md)

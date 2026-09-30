@@ -23,7 +23,7 @@ docker compose logs -f espocrm
 
 ## 自动更新与发布
 
-GitHub Actions 每天北京时间 **10:17** 查询 EspoCRM 官方 Docker Hub 稳定版本，也可手动运行。需要发布时，工作流构建镜像并推送三个标签；成功后更新 `VERSION` 与 Dockerfile 中的默认版本。版本未变且三个发布标签均存在时，定时任务跳过构建。
+GitHub Actions 每天北京时间 **10:17** 查询 EspoCRM 官方 GitHub 稳定发布并验证对应 Docker 标签，也可手动运行。需要发布时，工作流构建候选镜像，通过首次启动、HTTP、中文配置和容器重建后的持久化测试后，再推送三个标签；成功后更新 `VERSION` 与 Dockerfile 中的默认版本。版本未变且三个发布标签均存在时，定时任务跳过构建。
 
 工作流文件：[`.github/workflows/espocrm-auto-build.yml`](../.github/workflows/espocrm-auto-build.yml)。自动构建只发布容器镜像，不操作运行中的实例。
 
@@ -38,3 +38,8 @@ GitHub Actions 每天北京时间 **10:17** 查询 EspoCRM 官方 Docker Hub 稳
 | `MARIADB_ROOT_PASSWORD` | MariaDB 管理密码 |
 
 本项目基于 [EspoCRM 官方容器](https://hub.docker.com/r/espocrm/espocrm)构建；EspoCRM 及相关组件遵循各自许可证。
+
+
+## 更新记录
+
+[2026-09-30 镜像更新清单](../docs/更新清单/2026-09-30.md)

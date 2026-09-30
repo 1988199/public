@@ -103,6 +103,12 @@ jobs:
         if: steps.decision.outputs.build == 'true'
         run: CI_SITE_NAME=erp.localhost CI_OMIT_SITE_NAME=1 bash scripts/ci-smoke-test.sh "${LOCAL_IMAGE}"
 
+      - name: 验证发布前 latest 镜像的空站点升级
+        if: steps.decision.outputs.build == 'true'
+        run: |
+          docker pull "${ERP_IMAGE}:latest"
+          bash scripts/ci-smoke-test.sh "${LOCAL_IMAGE}" "${ERP_IMAGE}:latest"
+
       - name: 发布通过测试的镜像
         if: steps.decision.outputs.build == 'true'
         shell: bash

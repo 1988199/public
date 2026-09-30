@@ -5,3 +5,7 @@
 - [ERPNext V16 单容器发行版](erpnext-single/README.md)：ERPNext、HRMS、CRM、MariaDB、Redis、Web 和队列整合在单个容器中，镜像由 GitHub Actions 自动构建并发布到 GHCR。
 - [EspoCRM 中文单容器](espocrm-cn-single/README.md)：EspoCRM 与 MariaDB 单容器方案，含中文启动、配置、持久化及升级说明。
 - [Twenty 单容器](twenty-single/README.md)
+
+## 更新记录
+
+- [2026-09-30：ERPNext、EspoCRM 与 Twenty 镜像更新清单](docs/更新清单/2026-09-30.md)
