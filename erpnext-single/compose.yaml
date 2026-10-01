@@ -6,7 +6,7 @@ services:
     build:
       context: .
       args:
-        FRAPPE_REF: v16.36.0
+        FRAPPE_REF: v16.36.1
       # 中国会计 App 应通过 BuildKit secret 注入，参见 docs/扩展接口.md。
     restart: unless-stopped
     init: true
