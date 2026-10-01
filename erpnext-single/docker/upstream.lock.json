@@ -11,8 +11,8 @@
   },
   "hrms": {
     "repository": "frappe/hrms",
-    "ref": "v16.20.0",
-    "sha": "c0a04b80eeb721417b75cea758e831464d0da041"
+    "ref": "v16.20.1",
+    "sha": "6f5ac249283f6fa1013fd5616f3d95f686ba7bb2"
   },
   "crm": {
     "repository": "frappe/crm",

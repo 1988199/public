@@ -8,7 +8,7 @@
   {
     "name": "hrms",
     "url": "https://github.com/frappe/hrms.git",
-    "ref": "v16.20.0",
+    "ref": "v16.20.1",
     "install_on_new_site": true
   },
   {
