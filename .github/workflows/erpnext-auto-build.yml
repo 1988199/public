@@ -53,11 +53,11 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          if [[ "${GITHUB_REF}" == "refs/heads/main" && "${GITHUB_EVENT_NAME}" != push ]]; then
-            python3 scripts/detect-latest.py
-          else
-            echo 'changed=false' >> "$GITHUB_OUTPUT"
+          if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
+            echo '仅允许在 main 分支检测和发布镜像。' >&2
+            exit 1
           fi
+          python3 scripts/detect-latest.py
 
       - name: 登录 GitHub Container Registry
         uses: docker/login-action@v3
@@ -96,21 +96,24 @@ jobs:
         run: docker image inspect "${LOCAL_IMAGE}" --format '{{json .Config.ExposedPorts}}' | jq -e 'keys == ["80/tcp"]'
 
       - name: 启动空站点并执行烟雾测试
+        id: fresh_site
         if: steps.decision.outputs.build == 'true'
         run: bash scripts/ci-smoke-test.sh "${LOCAL_IMAGE}"
 
       - name: 验证未设置 SITE_NAME 时的手动启动
+        id: default_site
         if: steps.decision.outputs.build == 'true'
         run: CI_SITE_NAME=erp.localhost CI_OMIT_SITE_NAME=1 bash scripts/ci-smoke-test.sh "${LOCAL_IMAGE}"
 
       - name: 验证发布前 latest 镜像的空站点升级
+        id: upgrade_site
         if: steps.decision.outputs.build == 'true'
         run: |
           docker pull "${ERP_IMAGE}:latest"
           bash scripts/ci-smoke-test.sh "${LOCAL_IMAGE}" "${ERP_IMAGE}:latest"
 
       - name: 发布通过测试的镜像
-        if: steps.decision.outputs.build == 'true'
+        if: success() && steps.decision.outputs.build == 'true' && steps.fresh_site.outcome == 'success' && steps.default_site.outcome == 'success' && steps.upgrade_site.outcome == 'success'
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -186,6 +189,6 @@ jobs:
       - name: 失败时输出构建环境摘要
         if: failure()
         run: |
+          echo '检查、构建、测试或发布失败。测试未通过时不会进入发布步骤；已验证版本未记录时，下次每日检查将重新尝试。请查看失败步骤日志。' >> "$GITHUB_STEP_SUMMARY"
           docker version || true
           docker system df || true
-

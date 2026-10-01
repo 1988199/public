@@ -14,7 +14,7 @@ on:
       - '.github/workflows/twenty-auto-build.yml'
   workflow_dispatch:
   schedule:
-    - cron: '43 2 * * *'
+    - cron: '57 2 * * *'
 
 permissions:
   contents: write
@@ -65,6 +65,7 @@ jobs:
             BUILD=false
           fi
           echo "build=$BUILD" >> "$GITHUB_OUTPUT"
+          echo "官方稳定版本：$VERSION；已记录版本：$CURRENT；需要构建：$BUILD。" >> "$GITHUB_STEP_SUMMARY"
       - name: Build candidate locally (not published yet)
         if: steps.decision.outputs.build == 'true'
         uses: docker/build-push-action@v6
@@ -77,10 +78,11 @@ jobs:
           cache-from: type=gha,scope=twenty-single
           cache-to: type=gha,mode=max,scope=twenty-single
       - name: Test startup, persistence and Supervisor recovery
+        id: smoke
         if: steps.decision.outputs.build == 'true'
         run: bash twenty-single/scripts/smoke-test.sh twenty-single:candidate
       - name: Publish the tested image
-        if: steps.decision.outputs.build == 'true'
+        if: success() && steps.decision.outputs.build == 'true' && steps.smoke.outcome == 'success'
         env:
           IMAGE: ${{ steps.decision.outputs.image }}
           VERSION: ${{ steps.version.outputs.version }}
@@ -116,3 +118,6 @@ jobs:
             sleep 5
           done
           exit 1
+      - name: 记录失败结果
+        if: failure()
+        run: echo '检查、构建、测试或发布失败。测试未通过不会发布；未记录的新版本将在下次每日检查重新尝试。请查看失败步骤日志。' >> "$GITHUB_STEP_SUMMARY"

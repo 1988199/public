@@ -40,7 +40,9 @@ jobs:
         id: ver
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 espocrm-cn-single/scripts/detect-version.py
+        run: |
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then exit 1; fi
+          python3 espocrm-cn-single/scripts/detect-version.py
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -67,6 +69,7 @@ jobs:
             BUILD=false
           fi
           echo "build=$BUILD" >> "$GITHUB_OUTPUT"
+          echo "官方稳定版本：$LATEST；已记录版本：$CURRENT；需要构建：$BUILD。" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build candidate image
         if: steps.decision.outputs.build == 'true'
@@ -83,11 +86,12 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Test startup and persistence
+        id: smoke
         if: steps.decision.outputs.build == 'true'
         run: bash espocrm-cn-single/scripts/smoke-test.sh espocrm-single:candidate
 
       - name: Publish tested image
-        if: steps.decision.outputs.build == 'true'
+        if: success() && steps.decision.outputs.build == 'true' && steps.smoke.outcome == 'success'
         env:
           VERSION: ${{ steps.ver.outputs.latest }}
         run: |
@@ -97,6 +101,7 @@ jobs:
             docker tag espocrm-single:candidate "$IMAGE:$TAG"
             docker push "$IMAGE:$TAG"
           done
+          echo "测试通过并发布 EspoCRM $VERSION：版本标签、espocrm-$VERSION、latest。" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Update VERSION after successful build
         if: steps.decision.outputs.build == 'true'
@@ -121,3 +126,7 @@ jobs:
             sleep 5
           done
           exit 1
+
+      - name: 记录失败结果
+        if: failure()
+        run: echo '检查、构建、测试或发布失败。测试未通过不会发布；未记录的新版本将在下次每日检查重新尝试。请查看失败步骤日志。' >> "$GITHUB_STEP_SUMMARY"

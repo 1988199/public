@@ -27,6 +27,10 @@ GitHub Actions 每天北京时间 **10:17** 查询 EspoCRM 官方 GitHub 稳定�
 
 工作流文件：[`.github/workflows/espocrm-auto-build.yml`](../.github/workflows/espocrm-auto-build.yml)。自动构建只发布容器镜像，不操作运行中的实例。
 
+测试失败不会发布候选镜像或更新已验证版本，下次每日检查会重新尝试。Actions 运行摘要显示官方版本、已记录版本及是否需要构建；检查成功不等于生成新镜像。发布只更新镜像仓库，不自动替换已运行的容器。
+
+以上为计划检查时间，GitHub 的定时调度可能延迟；公开仓库连续 60 天没有活动时，定时工作流可能被自动停用。可在 Actions 页面检查运行记录、重新启用或手动执行。详见 [GitHub 定时任务说明](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)。
+
 ## 配置
 
 | 变量 | 说明 |

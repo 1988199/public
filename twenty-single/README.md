@@ -16,9 +16,13 @@ docker compose logs -f twenty
 
 ## 自动更新与发布
 
-GitHub Actions 每天北京时间 **10:43** 检查 Twenty 官方稳定版，也可手动运行。新版本出现时，先确认对应的官方 Docker 标签并构建候选镜像；通过 HTTP、服务进程、数据持久化及 Worker 恢复测试后，才发布版本号、`twenty-版本号` 和 `latest` 标签，并更新 `VERSION`。
+GitHub Actions 每天北京时间 **10:57** 检查 Twenty 官方稳定版，也可手动运行。新版本出现时，先确认对应的官方 Docker 标签并构建候选镜像；通过 HTTP、服务进程、数据持久化及 Worker 恢复测试后，才发布版本号、`twenty-版本号` 和 `latest` 标签，并更新 `VERSION`。
 
 若版本未变化且所有目标标签均已发布，定时任务跳过构建。工作流文件：[`.github/workflows/twenty-auto-build.yml`](../.github/workflows/twenty-auto-build.yml)。
+
+测试失败不会发布候选镜像或更新已验证版本，下次每日检查会重新尝试。Actions 运行摘要显示官方版本、已记录版本及是否需要构建；检查成功不等于生成新镜像。发布只更新镜像仓库，不自动替换已运行的容器。
+
+以上为计划检查时间，GitHub 的定时调度可能延迟；公开仓库连续 60 天没有活动时，定时工作流可能被自动停用。可在 Actions 页面检查运行记录、重新启用或手动执行。详见 [GitHub 定时任务说明](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)。
 
 ## 数据
 

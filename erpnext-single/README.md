@@ -26,7 +26,11 @@ docker compose logs -f erpnext
 
 ## 自动更新与发布
 
-公共仓库的 GitHub Actions 每天北京时间 **10:43** 检查 Frappe、ERPNext、HRMS 和 CRM 的官方稳定版，也可手动运行。发现上游版本更新后，自动生成候选镜像并检查配置、空站点安装、两种 `SITE_NAME` 启动方式及网页资源。检查通过后才发布版本标签和 `latest`，并记录已验证的上游版本；版本未变且已有 `latest` 时，定时任务跳过构建。
+公共仓库的 GitHub Actions 每天北京时间 **10:43** 检查 Frappe V16、ERPNext V16、HRMS V16 和 CRM 的官方稳定版，也可手动运行。任一组件出现新版本后，自动生成候选镜像，检查配置、空站点安装、两种 `SITE_NAME` 启动方式、中文关键译文及网页资源，并从已发布的 `latest` 完成临时空站点备份与升级测试。所有测试成功后才发布版本标签和 `latest`，最后记录已验证的上游版本；版本未变且已有 `latest` 时，定时任务跳过构建。
+
+测试失败不会发布候选镜像或更新已验证版本，下次每日检查会重新尝试。Actions 运行摘要区分“无更新，跳过构建”“测试通过并发布”和失败；检查成功不等于生成新镜像。发布只更新镜像仓库，不自动替换已运行的容器或迁移企业数据。
+
+以上为计划检查时间，GitHub 的定时调度可能延迟；公开仓库连续 60 天没有活动时，定时工作流可能被自动停用。可在 Actions 页面检查运行记录、重新启用或手动执行。详见 [GitHub 定时任务说明](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)。
 
 工作流文件：[`.github/workflows/erpnext-auto-build.yml`](../.github/workflows/erpnext-auto-build.yml)。镜像发布使用 GitHub Actions 的 `GITHUB_TOKEN`。
 
