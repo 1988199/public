@@ -1,0 +1,66 @@
+name: 核验并发布镜像升级 Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/更新清单/*.json'
+      - '.github/workflows/docker-release-notes.yml'
+  workflow_dispatch:
+    inputs:
+      release_date:
+        description: '升级清单日期（YYYY-MM-DD）'
+        required: true
+        default: '2026-10-04'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: docker-release-notes
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_DATE: ${{ inputs.release_date || '2026-10-04' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: 核验测试记录和已发布镜像
+        run: |
+          set -Eeuo pipefail
+          [[ "$GITHUB_REF" == refs/heads/main ]]
+          [[ "$RELEASE_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]
+          DATA="docs/更新清单/$RELEASE_DATE.json"
+          test -f "docs/更新清单/$RELEASE_DATE.md"
+          jq -e 'length == 3' "$DATA"
+          while IFS= read -r row; do
+            IMAGE=$(jq -r '.image' <<< "$row")
+            TAG=$(jq -r '.tag' <<< "$row")
+            DIGEST=$(jq -r '.digest' <<< "$row")
+            RUN=$(jq -r '.run' <<< "$row")
+            STEP=$(jq -r '.testStep' <<< "$row")
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN" |
+              jq -e '.status == "completed" and .conclusion == "success"'
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN/jobs" |
+              jq -e --arg step "$STEP" 'any(.jobs[].steps[]; .name == $step and .conclusion == "success")'
+            for REF in "$IMAGE:$TAG" "$IMAGE:latest"; do
+              ACTUAL=$(docker manifest inspect --verbose "$REF" | jq -er '.Descriptor.digest')
+              [[ "$ACTUAL" == "$DIGEST" ]]
+              echo "已核对 $REF：$ACTUAL" >> "$GITHUB_STEP_SUMMARY"
+            done
+          done < <(jq -c '.[]' "$DATA")
+      - name: 发布中文升级 Release
+        run: |
+          set -Eeuo pipefail
+          TAG="images-$RELEASE_DATE"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo '同日期 Release 已存在，不覆盖已发布记录。'
+            exit 0
+          fi
+          gh release create "$TAG" "docs/更新清单/$RELEASE_DATE.json" \
+            --target "$GITHUB_SHA" --title "单容器镜像升级 $RELEASE_DATE" \
+            --notes-file "docs/更新清单/$RELEASE_DATE.md"
