@@ -61,7 +61,9 @@ jobs:
           if [[ "$EVENT" == schedule && "$CURRENT" == "$VERSION" ]] \
             && docker buildx imagetools inspect "$IMAGE:$VERSION" >/dev/null 2>&1 \
             && docker buildx imagetools inspect "$IMAGE:latest" >/dev/null 2>&1 \
-            && docker buildx imagetools inspect "$IMAGE:twenty-$VERSION" >/dev/null 2>&1; then
+            && docker buildx imagetools inspect "$IMAGE:twenty-$VERSION" >/dev/null 2>&1 \
+            && [[ "$(docker manifest inspect --verbose "$IMAGE:$VERSION" | jq -er '.Descriptor.digest')" == "$(docker manifest inspect --verbose "$IMAGE:latest" | jq -er '.Descriptor.digest')" ]] \
+            && [[ "$(docker manifest inspect --verbose "$IMAGE:$VERSION" | jq -er '.Descriptor.digest')" == "$(docker manifest inspect --verbose "$IMAGE:twenty-$VERSION" | jq -er '.Descriptor.digest')" ]]; then
             BUILD=false
           fi
           echo "build=$BUILD" >> "$GITHUB_OUTPUT"
