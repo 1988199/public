@@ -11,10 +11,10 @@ on:
       release_date:
         description: '升级清单日期（YYYY-MM-DD）'
         required: true
-        default: '2026-10-04'
 
 permissions:
   contents: write
+  actions: read
 
 concurrency:
   group: docker-release-notes
@@ -26,9 +26,18 @@ jobs:
     timeout-minutes: 15
     env:
       GH_TOKEN: ${{ github.token }}
-      RELEASE_DATE: ${{ inputs.release_date || '2026-10-04' }}
+      RELEASE_DATE: ${{ inputs.release_date }}
     steps:
       - uses: actions/checkout@v4
+      - name: 确定发布清单日期
+        run: |
+          set -Eeuo pipefail
+          if [[ -z "$RELEASE_DATE" ]]; then
+            RELEASE_DATE=$(find docs/更新清单 -maxdepth 1 -type f -name '????-??-??.json' -printf '%f\n' | sort | tail -n 1)
+            RELEASE_DATE=${RELEASE_DATE%.json}
+          fi
+          [[ "$RELEASE_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]
+          echo "RELEASE_DATE=$RELEASE_DATE" >> "$GITHUB_ENV"
       - name: 核验测试记录和已发布镜像
         run: |
           set -Eeuo pipefail

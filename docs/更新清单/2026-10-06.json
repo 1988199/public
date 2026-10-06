@@ -1,0 +1,26 @@
+[
+  {
+    "project": "ERPNext",
+    "image": "ghcr.io/1988199/erpnext-single",
+    "tag": "V16.37.0",
+    "digest": "sha256:5637de2971c43ffbb7bd07fe54df83df4c8ed5e26a81e9a43f33319fd52d0ffe",
+    "run": 36842617852,
+    "testStep": "验证发布前 latest 镜像的空站点升级"
+  },
+  {
+    "project": "EspoCRM",
+    "image": "ghcr.io/1988199/espocrm-cn-single",
+    "tag": "10.0.9",
+    "digest": "sha256:34d79b8454c15555efa1932877ca89074a37bfd8c5f5fcaf751f509c5b2ed81c",
+    "run": 36808485217,
+    "testStep": "Test startup and persistence"
+  },
+  {
+    "project": "Twenty",
+    "image": "ghcr.io/1988199/twenty-single",
+    "tag": "2.45.0",
+    "digest": "sha256:8873f95c27b84e5a7a7a0a2217f16d50476558fd3f9689fb37b457c08c98fef9",
+    "run": 37422353021,
+    "testStep": "Test startup, persistence and Supervisor recovery"
+  }
+]

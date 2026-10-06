@@ -50,3 +50,4 @@ GitHub Actions 每天北京时间 **10:17** 查询 EspoCRM 官方 GitHub 稳定�
 
 [2026-10-04 镜像升级 Release](../docs/更新清单/2026-10-04.md)
 
+[2026-10-06 镜像升级 Release](../docs/更新清单/2026-10-06.md)

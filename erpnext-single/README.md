@@ -50,3 +50,4 @@ docker compose logs -f erpnext
 
 [2026-10-04 镜像升级 Release](../docs/更新清单/2026-10-04.md)
 
+[2026-10-06 镜像升级 Release](../docs/更新清单/2026-10-06.md)
