@@ -2,13 +2,13 @@
   {
     "name": "erpnext",
     "url": "https://github.com/frappe/erpnext.git",
-    "ref": "v16.37.0",
+    "ref": "v16.50.0",
     "install_on_new_site": true
   },
   {
     "name": "hrms",
     "url": "https://github.com/frappe/hrms.git",
-    "ref": "v16.20.1",
+    "ref": "v16.50.0",
     "install_on_new_site": true
   },
   {

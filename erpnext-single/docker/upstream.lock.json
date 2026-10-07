@@ -1,18 +1,18 @@
 {
   "frappe": {
     "repository": "frappe/frappe",
-    "ref": "v16.36.1",
-    "sha": "97a5dd93ca5883bcc9c4ef9834120c5cba397b67"
+    "ref": "v16.50.0",
+    "sha": "f20f92d29706510551b4438cc196b0323a7f1a92"
   },
   "erpnext": {
     "repository": "frappe/erpnext",
-    "ref": "v16.37.0",
-    "sha": "af63cde4941570ec7b9e12422c68302762cfcf91"
+    "ref": "v16.50.0",
+    "sha": "7474d9e786277383de1242ab882f16856d17a9c9"
   },
   "hrms": {
     "repository": "frappe/hrms",
-    "ref": "v16.20.1",
-    "sha": "6f5ac249283f6fa1013fd5616f3d95f686ba7bb2"
+    "ref": "v16.50.0",
+    "sha": "7c037698ce57d1492f05a8b4a586a7578f722879"
   },
   "crm": {
     "repository": "frappe/crm",
