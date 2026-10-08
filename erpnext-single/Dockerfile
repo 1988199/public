@@ -1,7 +1,7 @@
 ARG BENCH_IMAGE=frappe/bench:v5.31.0@sha256:6df74bce06ab017aa350a16ffdc7aff4559a4a1bf3d785d8e552dacc19b5f0e7
 FROM ${BENCH_IMAGE} AS build
 
-ARG FRAPPE_REF=v16.50.0
+ARG FRAPPE_REF=v16.51.0
 ARG FRAPPE_REPO=https://github.com/frappe/frappe.git
 
 # 仅供当前测试阶段使用；生产构建必须通过环境变量覆盖。

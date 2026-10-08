@@ -1,8 +1,8 @@
 {
   "frappe": {
     "repository": "frappe/frappe",
-    "ref": "v16.50.0",
-    "sha": "f20f92d29706510551b4438cc196b0323a7f1a92"
+    "ref": "v16.51.0",
+    "sha": "6b450a166e076dd842e4db7ea0843f62881e62ac"
   },
   "erpnext": {
     "repository": "frappe/erpnext",
