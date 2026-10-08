@@ -72,7 +72,9 @@ jobs:
         run: |
           set -Eeuo pipefail
           if [[ "${GITHUB_EVENT_NAME}" == schedule && "${{ steps.upstream.outputs.changed }}" == false ]] \
-            && docker manifest inspect "${ERP_IMAGE}:latest" >/dev/null 2>&1; then
+            && docker manifest inspect "${ERP_IMAGE}:latest" >/dev/null 2>&1 \
+            && docker manifest inspect "${ERP_IMAGE}:V${{ steps.upstream.outputs.version }}" >/dev/null 2>&1 \
+            && [[ "$(docker manifest inspect --verbose "${ERP_IMAGE}:latest" | jq -er '.Descriptor.digest')" == "$(docker manifest inspect --verbose "${ERP_IMAGE}:V${{ steps.upstream.outputs.version }}" | jq -er '.Descriptor.digest')" ]]; then
             echo 'build=false' >> "$GITHUB_OUTPUT"
             echo '官方版本未更新，已存在 latest 镜像，本次跳过构建。' >> "$GITHUB_STEP_SUMMARY"
           else
