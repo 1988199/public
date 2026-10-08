@@ -30,6 +30,18 @@ wait_healthy() {
 
 # 上一版仅初始化合成空站点；备份后使用同一组临时卷执行升级。
 volume_args=()
+if [[ "${CI_BIND_MOUNTS:-0}" == 1 ]]; then
+  [[ -z "$previous_image" ]] || { echo '空目录挂载测试不能与旧站点升级混用。' >&2; exit 1; }
+  # 仅使用 Runner 的独立临时目录；不接触真实部署或业务数据。
+  bind_root="$(mktemp -d "${RUNNER_TEMP:-/tmp}/erpnext-bind-ci.XXXXXX")"
+  mkdir -p "$bind_root"/{database,redis,sites,logs}
+  volume_args=(
+    --mount "type=bind,source=$bind_root/database,target=/var/lib/mysql"
+    --mount "type=bind,source=$bind_root/redis,target=/var/lib/redis"
+    --mount "type=bind,source=$bind_root/sites,target=/home/frappe/frappe-bench/sites"
+    --mount "type=bind,source=$bind_root/logs,target=/home/frappe/frappe-bench/logs"
+  )
+fi
 if [[ -n "$previous_image" ]]; then
   docker run --detach --name "$previous_container" \
     --env SITE_NAME="$site_name" "$previous_image" >/dev/null
@@ -48,6 +60,11 @@ docker run --detach "${volume_args[@]}" \
   --name "${container}" \
   "${site_env_args[@]}" \
   "${image}" >/dev/null
+
+if [[ "${CI_BIND_MOUNTS:-0}" == 1 ]]; then
+  docker inspect "$container" --format '{{json .Mounts}}' |
+    jq -e '[.[] | select(.Type == "bind")] | length == 4'
+fi
 
 status=starting
 for _ in $(seq 1 120); do

@@ -102,10 +102,10 @@ jobs:
         if: steps.decision.outputs.build == 'true'
         run: bash scripts/ci-smoke-test.sh "${LOCAL_IMAGE}"
 
-      - name: 验证未设置 SITE_NAME 时的手动启动
+      - name: 验证空目录挂载且未设置 SITE_NAME 的手动启动
         id: default_site
         if: steps.decision.outputs.build == 'true'
-        run: CI_SITE_NAME=erp.localhost CI_OMIT_SITE_NAME=1 bash scripts/ci-smoke-test.sh "${LOCAL_IMAGE}"
+        run: CI_BIND_MOUNTS=1 CI_SITE_NAME=erp.localhost CI_OMIT_SITE_NAME=1 bash scripts/ci-smoke-test.sh "${LOCAL_IMAGE}"
 
       - name: 验证发布前 latest 镜像的空站点升级
         id: upgrade_site
@@ -160,7 +160,7 @@ jobs:
             echo "docker pull ${ERP_IMAGE}:latest"
             echo '```'
             echo
-            echo '已通过构建配置、空站点安装、无 SITE_NAME 启动、应用版本、中文关键译文及 localhost 页面资源检查。'
+            echo '已通过构建配置、空站点安装、空目录 bind 挂载及无 SITE_NAME 启动、应用版本、中文关键译文及 localhost 页面资源检查。'
             echo '本流程只发布镜像，不部署或改动企业站点。'
           } | tee release-info/镜像说明.md >> "${GITHUB_STEP_SUMMARY}"
 

@@ -28,6 +28,17 @@ install -d -o mysql -g mysql /run/mysqld /var/lib/mysql
 install -d -o redis -g redis /var/lib/redis
 install -d -o frappe -g frappe "$BENCH_DIR/sites" "$BENCH_DIR/logs"
 
+# 空 bind mount 不会像 Docker volume 一样复制镜像中的 sites 文件。
+# 在首次 Bench 调用前生成公共 App 清单；已有站点配置及业务文件不覆盖。
+apps_txt_tmp="$BENCH_DIR/sites/apps.txt.tmp"
+jq -r '.[]' "$BENCH_DIR/apps-available.json" >"$apps_txt_tmp"
+chown frappe:frappe "$apps_txt_tmp"
+mv -f "$apps_txt_tmp" "$BENCH_DIR/sites/apps.txt"
+if [[ ! -f "$BENCH_DIR/sites/common_site_config.json" ]]; then
+  printf '{}\n' >"$BENCH_DIR/sites/common_site_config.json"
+  chown frappe:frappe "$BENCH_DIR/sites/common_site_config.json"
+fi
+
 # 旧 sites 卷会遮蔽新镜像的 assets.json，导致页面引用已不存在的旧 CSS/JS。
 # 仅同步镜像公共构建产物；不修改站点配置、附件或数据库。
 install -d -o frappe -g frappe "$BENCH_DIR/sites/assets"
@@ -66,11 +77,6 @@ run_bench set-config -g redis_cache redis://127.0.0.1:6379
 run_bench set-config -g redis_queue redis://127.0.0.1:6379
 run_bench set-config -g redis_socketio redis://127.0.0.1:6379
 run_bench set-config -g socketio_port 9000
-
-apps_txt_tmp="$BENCH_DIR/sites/apps.txt.tmp"
-jq -r '.[]' "$BENCH_DIR/apps-available.json" >"$apps_txt_tmp"
-chown frappe:frappe "$apps_txt_tmp"
-mv -f "$apps_txt_tmp" "$BENCH_DIR/sites/apps.txt"
 
 if [[ ! -f "sites/${SITE_NAME}/site_config.json" ]]; then
   run_bench new-site "$SITE_NAME" \
