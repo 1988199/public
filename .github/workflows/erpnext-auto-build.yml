@@ -43,8 +43,8 @@ jobs:
       - name: 检出源码
         uses: actions/checkout@v4
 
-      - name: 清理 Runner 预置 Docker 缓存
-        run: docker system prune --all --force
+      - name: 测试 ERPNext 主版本发布规则
+        run: python3 scripts/test-detect-latest.py
 
       - name: 检查官方 V16 稳定版本
         id: upstream
@@ -59,30 +59,32 @@ jobs:
           fi
           python3 scripts/detect-latest.py
 
+      - name: 判断是否需要重新构建
+        id: decision
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ "${{ steps.upstream.outputs.erpnext_changed }}" == true ]]; then
+            echo 'build=true' >> "$GITHUB_OUTPUT"
+            echo 'ERPNext 发布版本前进，进入构建与测试流程。' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'build=false' >> "$GITHUB_OUTPUT"
+            echo 'ERPNext 版本未变化：不构建、不发布镜像；附属组件更新等待下一次 ERPNext 发布。' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: 登录 GitHub Container Registry
+        if: steps.decision.outputs.build == 'true'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 判断是否需要重新构建
-        id: decision
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          if [[ "${GITHUB_EVENT_NAME}" == schedule && "${{ steps.upstream.outputs.changed }}" == false ]] \
-            && docker manifest inspect "${ERP_IMAGE}:latest" >/dev/null 2>&1 \
-            && docker manifest inspect "${ERP_IMAGE}:V${{ steps.upstream.outputs.version }}" >/dev/null 2>&1 \
-            && [[ "$(docker manifest inspect --verbose "${ERP_IMAGE}:latest" | jq -er '.Descriptor.digest')" == "$(docker manifest inspect --verbose "${ERP_IMAGE}:V${{ steps.upstream.outputs.version }}" | jq -er '.Descriptor.digest')" ]]; then
-            echo 'build=false' >> "$GITHUB_OUTPUT"
-            echo '官方版本未更新，已存在 latest 镜像，本次跳过构建。' >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo 'build=true' >> "$GITHUB_OUTPUT"
-          fi
+      - name: 清理 Runner 预置 Docker 缓存
+        if: steps.decision.outputs.build == 'true'
+        run: docker system prune --all --force
 
       - name: 检查构建配置及公共数据边界
-        if: steps.decision.outputs.build == 'true'
         run: |
           python3 scripts/validate.py
           docker compose --env-file .env.example config --quiet

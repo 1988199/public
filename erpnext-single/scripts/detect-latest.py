@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""从官方发布中选择稳定版本；仅在版本前进时更新候选构建清单。"""
+"""每天检查官方稳定版；只有 ERPNext 自身版本前进才更新构建清单。"""
 
 from __future__ import annotations
 
@@ -90,6 +90,12 @@ def main() -> None:
         changed |= selected["ref"] != old["ref"]
         print(f"{app}: {old['ref']} -> {selected['ref']} ({selected['sha']})")
 
+    component_changes = changed
+    erpnext_changed = candidate["erpnext"]["ref"] != current["erpnext"]["ref"]
+    changed = erpnext_changed
+    if component_changes and not erpnext_changed:
+        print("仅附属组件有更新：等待下一次 ERPNext 发布，本次不修改版本清单。")
+
     if changed:
         replace_once(ROOT / "Dockerfile", r"^ARG FRAPPE_REF=v16\.\d+\.\d+$", f"ARG FRAPPE_REF={candidate['frappe']['ref']}")
         replace_once(ROOT / "compose.yaml", r"^        FRAPPE_REF: v16\.\d+\.\d+$", f"        FRAPPE_REF: {candidate['frappe']['ref']}")
@@ -107,10 +113,21 @@ def main() -> None:
             f"当前 ERPNext 稳定版本：`{candidate['erpnext']['ref']}`",
         )
 
+    if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
+        with open(summary, "a", encoding="utf-8") as stream:
+            stream.write("### ERPNext 主版本发布门禁\n")
+            stream.write(f"- ERPNext：{current['erpnext']['ref']} → {candidate['erpnext']['ref']}\n")
+            stream.write(f"- 允许构建：{erpnext_changed}\n")
+            for app in SOURCES:
+                if app != "erpnext" and candidate[app]["ref"] != current[app]["ref"]:
+                    stream.write(f"- {app}：{current[app]['ref']} → {candidate[app]['ref']}（随 ERPNext 更新处理）\n")
+
     output = os.environ.get("GITHUB_OUTPUT")
     if output:
         with open(output, "a", encoding="utf-8") as stream:
             stream.write(f"changed={str(changed).lower()}\n")
+            stream.write(f"erpnext_changed={str(erpnext_changed).lower()}\n")
+            stream.write(f"component_updates_pending={str(component_changes and not erpnext_changed).lower()}\n")
             stream.write(f"version={candidate['erpnext']['ref'].removeprefix('v')}\n")
 
 
