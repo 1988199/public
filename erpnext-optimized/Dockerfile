@@ -34,10 +34,13 @@ RUN chmod 0755 /usr/local/bin/entrypoint /usr/local/bin/healthcheck /opt/erpnext
 # 仅从官方固定提交升级 CRM 代码；不连接或迁移任何企业站点。
 USER frappe
 WORKDIR /home/frappe/frappe-bench
-RUN git -C apps/crm fetch --depth 1 https://github.com/frappe/crm.git 0d3910b456ef4fb913e77b29db011b3debc4f778 \
+RUN git -C apps/crm stash push -m base-build-artifacts \
+    && git -C apps/crm fetch --depth 1 https://github.com/frappe/crm.git 0d3910b456ef4fb913e77b29db011b3debc4f778 \
     && git -C apps/crm checkout --detach 0d3910b456ef4fb913e77b29db011b3debc4f778 \
     && env/bin/python -m pip install --no-deps -e apps/crm \
     && redis-server --daemonize yes --dir /tmp --pidfile /tmp/optimized-redis.pid \
+    && PATH="/home/frappe/.nvm/versions/node/$(cat /home/frappe/.nvm/alias/default)/bin:$PATH" \
+       yarn --cwd apps/crm/frontend install --frozen-lockfile \
     && PATH="/home/frappe/.nvm/versions/node/$(cat /home/frappe/.nvm/alias/default)/bin:/home/frappe/.local/bin:$PATH" \
        /home/frappe/.local/bin/bench build --app crm --production \
     && redis-cli shutdown nosave
