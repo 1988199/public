@@ -27,7 +27,10 @@ fresh_site=0
 fresh_database=0
 if [[ ! -f "$BENCH_DIR/sites/$SITE_NAME/site_config.json" ]]; then
   [[ "${INIT_SITE:-0}" == 1 ]] || { echo '站点不存在；仅显式 INIT_SITE=1 才允许初始化。' >&2; exit 1; }
-  [[ ! -d /var/lib/mysql/mysql ]] || { echo '数据库已存在但站点配置缺失；拒绝初始化，先检查恢复资料。' >&2; exit 1; }
+  if find "$BENCH_DIR/sites" -mindepth 2 -maxdepth 2 -name site_config.json -print -quit 2>/dev/null | grep -q .; then
+    echo '发现其他已有站点；拒绝把旧卷当成全新系统初始化。' >&2
+    exit 1
+  fi
   [[ ${#DB_ROOT_PASSWORD} -ge 12 && ${#ADMIN_PASSWORD} -ge 12 ]] || { echo '新站点需提供至少12字符的独立密码。' >&2; exit 1; }
   fresh_site=1
 fi
@@ -95,7 +98,13 @@ for _ in {1..120}; do
 done
 [[ "$redis_ready" == 1 ]] || { echo "Redis 启动超时" >&2; exit 1; }
 
-if [[ "$fresh_database" == 1 ]]; then
+if [[ "$fresh_site" == 1 ]]; then
+  # 基础镜像可能包含 MariaDB 系统表，必须确认没有任何应用库，不能仅检查 mysql 目录。
+  existing_databases="$(mariadb --protocol=socket -uroot --batch --skip-column-names \
+    -e \"SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql','information_schema','performance_schema','sys','test')\")" || {
+      echo '无法确认新站点数据库为空，拒绝初始化。' >&2; exit 1;
+    }
+  [[ -z "$existing_databases" ]] || { echo '数据库已存在但站点配置缺失；拒绝初始化，先检查恢复资料。' >&2; exit 1; }
   escaped_password=${DB_ROOT_PASSWORD//\\/\\\\}
   escaped_password=${escaped_password//\'/\'\'}
   mariadb --protocol=socket -uroot <<SQL
