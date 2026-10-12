@@ -1,0 +1,63 @@
+name: ERPNext 优化镜像构建与验证
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - erpnext-optimized/**
+      - .github/workflows/erpnext-optimized.yml
+permissions:
+  contents: read
+  packages: write
+concurrency:
+  group: erpnext-optimized-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build-test-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: erpnext-optimized
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/erpnext-optimized
+      LOCAL_IMAGE: erpnext-optimized-ci:${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: 公共数据边界与脚本检查
+        run: |
+          python3 tests/static_checks.py
+          bash -n docker/entrypoint.sh tests/smoke.sh docker/healthcheck.sh docker/wait-dependencies.sh
+      - name: 构建固定版本优化镜像
+        run: docker build --progress=plain --tag "$LOCAL_IMAGE" .
+      - name: 初始化、搜索索引、重启及升级检查
+        run: bash tests/smoke.sh "$LOCAL_IMAGE" "$(sed -n 's/^ARG BASE_IMAGE=//p' Dockerfile)"
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: 发布已验证的优化镜像
+        run: |
+          set -Eeuo pipefail
+          revision="$(python3 -c 'import json;print(json.load(open("docker/manifest.json"))["runtime_revision"])')"
+          version="$(python3 -c 'import json;print(json.load(open("docker/manifest.json"))["apps"]["erpnext"])')"
+          tag="$IMAGE:V$version-opt-$revision"
+          docker tag "$LOCAL_IMAGE" "$tag"
+          docker tag "$LOCAL_IMAGE" "$IMAGE:sha-${GITHUB_SHA}"
+          docker push "$tag"
+          docker push "$IMAGE:sha-${GITHUB_SHA}"
+          mkdir -p release-info
+          docker pull "$tag"
+          docker image inspect "$tag" --format '{{json .RepoDigests}}' > release-info/digests.json
+          cp docker/manifest.json release-info/manifest.json
+          printf '优化镜像：`%s`\n\n未替换标准镜像标签，也未部署企业站点。\n' "$tag" | tee release-info/README.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: erpnext-optimized-release-${{ github.run_id }}
+          path: erpnext-optimized/release-info/
+          retention-days: 90
+      - name: 失败诊断
+        if: failure()
+        run: |
+          for name in $(docker ps -a --filter "name=optimized-ci" --format '{{.Names}}'); do docker logs "$name" 2>&1 | tail -100; done

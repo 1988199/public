@@ -1,0 +1,12 @@
+{
+  "runtime_revision": "20261012.1",
+  "base_digest": "sha256:5bf3984687b323649a5784a7b97705b99a18fe445721f3243386dfd3cae78043",
+  "sqlite": "3.54.0",
+  "apps": {
+    "frappe": "16.51.0",
+    "erpnext": "16.50.0",
+    "hrms": "16.50.0",
+    "crm": "1.87.0",
+    "china_sme_accounting": "0.2.0"
+  }
+}

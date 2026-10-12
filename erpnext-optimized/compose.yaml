@@ -1,0 +1,38 @@
+name: erpnext-optimized-test
+services:
+  erpnext:
+    image: ${IMAGE_NAME:?请填写已验证镜像标签或摘要}
+    restart: unless-stopped
+    stop_grace_period: 5m
+    ports:
+      - "127.0.0.1:${HTTP_PORT:-8091}:80"
+    environment:
+      SITE_NAME: ${SITE_NAME:-erp.localhost}
+      INIT_SITE: ${INIT_SITE:-0}
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-0}
+      DB_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+      ADMIN_PASSWORD_FILE: /run/secrets/admin_password
+      TZ: Asia/Shanghai
+    secrets:
+      - db_root_password
+      - admin_password
+    volumes:
+      - database:/var/lib/mysql
+      - redis:/var/lib/redis
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    logging:
+      driver: local
+      options:
+        max-size: 20m
+        max-file: "5"
+secrets:
+  db_root_password:
+    file: ${DB_ROOT_PASSWORD_PATH:?请指定密码文件}
+  admin_password:
+    file: ${ADMIN_PASSWORD_PATH:?请指定密码文件}
+volumes:
+  database:
+  redis:
+  sites:
+  logs:
