@@ -3,12 +3,13 @@ set -Eeuo pipefail
 
 BENCH_DIR=/home/frappe/frappe-bench
 SITE_NAME="${SITE_NAME:-erp.localhost}"
-DB_ROOT_PASSWORD="${DB_ROOT_PASSWORD:-}"
-ADMIN_PASSWORD="${ADMIN_PASSWORD:-}"
+DB_ROOT_PASSWORD="${DB_ROOT_PASSWORD:-Pass1234}"
+ADMIN_PASSWORD="${ADMIN_PASSWORD:-Pass1234}"
 for key in DB_ROOT_PASSWORD ADMIN_PASSWORD; do
   file_key="${key}_FILE"
   if [[ -n "${!file_key:-}" ]]; then
-    [[ -z "${!key}" ]] || { echo "密码与密码文件不能同时指定。" >&2; exit 1; }
+    # 密码文件优先于环境变量及镜像默认值。
+    [[ -r "${!file_key}" ]] || { echo "密码文件不可读取。" >&2; exit 1; }
     printf -v "$key" '%s' "$(cat "${!file_key}")"
   fi
 done
@@ -26,12 +27,12 @@ nginx -t
 fresh_site=0
 fresh_database=0
 if [[ ! -f "$BENCH_DIR/sites/$SITE_NAME/site_config.json" ]]; then
-  [[ "${INIT_SITE:-0}" == 1 ]] || { echo '站点不存在；仅显式 INIT_SITE=1 才允许初始化。' >&2; exit 1; }
+  [[ "${INIT_SITE:-1}" == 1 ]] || { echo '站点不存在，且 INIT_SITE=0 禁止初始化。' >&2; exit 1; }
   if find "$BENCH_DIR/sites" -mindepth 2 -maxdepth 2 -name site_config.json -print -quit 2>/dev/null | grep -q .; then
     echo '发现其他已有站点；拒绝把旧卷当成全新系统初始化。' >&2
     exit 1
   fi
-  [[ ${#DB_ROOT_PASSWORD} -ge 12 && ${#ADMIN_PASSWORD} -ge 12 ]] || { echo '新站点需提供至少12字符的独立密码。' >&2; exit 1; }
+  [[ -n "$DB_ROOT_PASSWORD" && -n "$ADMIN_PASSWORD" ]] || { echo '初始化密码不能为空。' >&2; exit 1; }
   fresh_site=1
 fi
 
@@ -160,3 +161,4 @@ cleanup_bootstrap
 trap - EXIT TERM INT
 
 exec /usr/bin/supervisord -n -c /etc/supervisor/supervisord.conf
+

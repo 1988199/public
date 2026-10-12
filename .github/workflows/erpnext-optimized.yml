@@ -1,19 +1,23 @@
 name: ERPNext 优化镜像构建与验证
+
 on:
   workflow_dispatch:
-  push:
+  workflow_run:
+    workflows: ["构建并测试 Docker 镜像"]
+    types: [completed]
     branches: [main]
-    paths:
-      - erpnext-optimized/**
-      - .github/workflows/erpnext-optimized.yml
+
 permissions:
-  contents: read
+  contents: write
   packages: write
+
 concurrency:
   group: erpnext-optimized-${{ github.ref }}
   cancel-in-progress: false
+
 jobs:
   build-test-publish:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     defaults:
@@ -24,40 +28,103 @@ jobs:
       LOCAL_IMAGE: erpnext-optimized-ci:${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
-      - name: 公共数据边界与脚本检查
+        with:
+          ref: main
+
+      - name: 公共数据边界与离线规则检查
         run: |
           python3 tests/static_checks.py
+          python3 tests/test_prepare_release.py
           bash -n docker/entrypoint.sh tests/smoke.sh docker/healthcheck.sh docker/wait-dependencies.sh
+
+      - name: 只在 ERPNext 版本前进时准备优化发行
+        id: version
+        run: python3 scripts/prepare-release.py
+
+      - name: 固定已验证基础镜像和应用清单
+        if: steps.version.outputs.build == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$GITHUB_REF" == refs/heads/main ]]
+          BASE="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/erpnext-single:V$VERSION"
+          DIGEST=$(docker manifest inspect --verbose "$BASE" | python3 -c 'import json,sys;print(json.load(sys.stdin)["Descriptor"]["digest"])')
+          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          BASE_REF="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/erpnext-single@$DIGEST"
+          docker pull "$BASE_REF"
+          python3 scripts/prepare-release.py --base-image "$BASE_REF"
+          python3 tests/static_checks.py
+          echo "BASE_REF=$BASE_REF" >> "$GITHUB_ENV"
+
       - name: 构建固定版本优化镜像
+        if: steps.version.outputs.build == 'true'
         run: docker build --progress=plain --tag "$LOCAL_IMAGE" .
+
       - name: 初始化、搜索索引、重启及升级检查
-        run: bash tests/smoke.sh "$LOCAL_IMAGE" "$(sed -n 's/^ARG BASE_IMAGE=//p' Dockerfile)"
+        if: steps.version.outputs.build == 'true'
+        id: smoke
+        run: |
+          python3 tests/test_defaults.py --image "$LOCAL_IMAGE"
+          bash tests/smoke.sh "$LOCAL_IMAGE" "$BASE_REF"
+
       - uses: docker/login-action@v3
+        if: steps.version.outputs.build == 'true' && steps.smoke.outcome == 'success'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: 发布已验证的优化镜像
+        if: success() && steps.version.outputs.build == 'true' && steps.smoke.outcome == 'success'
         run: |
           set -Eeuo pipefail
           revision="$(python3 -c 'import json;print(json.load(open("docker/manifest.json"))["runtime_revision"])')"
           version="$(python3 -c 'import json;print(json.load(open("docker/manifest.json"))["apps"]["erpnext"])')"
-          tag="$IMAGE:V$version-opt-$revision"
-          docker tag "$LOCAL_IMAGE" "$tag"
-          docker tag "$LOCAL_IMAGE" "$IMAGE:sha-${GITHUB_SHA}"
-          docker push "$tag"
-          docker push "$IMAGE:sha-${GITHUB_SHA}"
+          [[ "$version" =~ ^16\.[0-9]+\.[0-9]+$ ]]
+          [[ "$revision" =~ ^[0-9]{8}\.[0-9]+$ ]]
+          source_sha="$(git rev-parse HEAD)"
+          for suffix in "V$version-opt-$revision" "V$version" latest "sha-$source_sha" "build-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"; do
+            docker tag "$LOCAL_IMAGE" "$IMAGE:$suffix"
+            docker push "$IMAGE:$suffix"
+          done
           mkdir -p release-info
-          docker pull "$tag"
-          docker image inspect "$tag" --format '{{json .RepoDigests}}' > release-info/digests.json
+          docker pull "$IMAGE:build-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          docker image inspect "$IMAGE:build-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" --format '{{json .RepoDigests}}' > release-info/digests.json
           cp docker/manifest.json release-info/manifest.json
-          printf '优化镜像：`%s`\n\n未替换标准镜像标签，也未部署企业站点。\n' "$tag" | tee release-info/README.md >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "优化镜像：$IMAGE:V$version-opt-$revision"
+            echo "同时发布 V$version、latest 和本次构建标签。"
+            echo "基础镜像：$BASE_REF"
+            echo "不把优化内容覆盖到标准镜像包，不部署企业站点。"
+          } | tee release-info/README.md >> "$GITHUB_STEP_SUMMARY"
+
       - uses: actions/upload-artifact@v4
+        if: steps.version.outputs.build == 'true' && steps.smoke.outcome == 'success'
         with:
           name: erpnext-optimized-release-${{ github.run_id }}
           path: erpnext-optimized/release-info/
           retention-days: 90
+
+      - name: 发布成功后记录优化版版本及摘要
+        if: success() && steps.version.outputs.build == 'true' && steps.smoke.outcome == 'success'
+        run: |
+          set -Eeuo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Dockerfile compose.yaml docker/manifest.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'chore: record verified optimized ERPNext release [skip ci]'
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+
       - name: 失败诊断
         if: failure()
         run: |
+          echo '优化构建、测试或发布未完成，不记录新优化版版本；下一次标准检查成功后仍会重新判断待发布版本。' >> "$GITHUB_STEP_SUMMARY"
           for name in $(docker ps -a --filter "name=optimized-ci" --format '{{.Names}}'); do docker logs "$name" 2>&1 | tail -100; done
+

@@ -1,21 +1,18 @@
-name: erpnext-optimized-test
+name: ${COMPOSE_PROJECT_NAME:-erpnext-optimized}
 services:
   erpnext:
-    image: ${IMAGE_NAME:?请填写已验证镜像标签或摘要}
+    image: ${IMAGE_NAME:?请指定已验证优化镜像标签或摘要}
     restart: unless-stopped
     stop_grace_period: 5m
     ports:
-      - "127.0.0.1:${HTTP_PORT:-8091}:80"
+      - "${BIND_ADDRESS:-127.0.0.1}:${HTTP_PORT:-8091}:80"
     environment:
       SITE_NAME: ${SITE_NAME:-erp.localhost}
-      INIT_SITE: ${INIT_SITE:-0}
+      INIT_SITE: ${INIT_SITE:-1}
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-0}
-      DB_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
-      ADMIN_PASSWORD_FILE: /run/secrets/admin_password
-      TZ: Asia/Shanghai
-    secrets:
-      - db_root_password
-      - admin_password
+      DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-Pass1234}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Pass1234}
+      TZ: ${TZ:-Asia/Shanghai}
     volumes:
       - database:/var/lib/mysql
       - redis:/var/lib/redis
@@ -26,13 +23,9 @@ services:
       options:
         max-size: 20m
         max-file: "5"
-secrets:
-  db_root_password:
-    file: ${DB_ROOT_PASSWORD_PATH:?请指定密码文件}
-  admin_password:
-    file: ${ADMIN_PASSWORD_PATH:?请指定密码文件}
 volumes:
   database:
   redis:
   sites:
   logs:
+

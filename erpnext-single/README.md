@@ -36,7 +36,7 @@ ERPNext 发布新版本后，再一并选择各组件的官方稳定版，检查
 
 以上为计划检查时间，GitHub 的定时调度可能延迟；公开仓库连续 60 天没有活动时，定时工作流可能被自动停用。可在 Actions 页面检查运行记录、重新启用或手动执行。详见 [GitHub 定时任务说明](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)。
 
-工作流文件：[`.github/workflows/erpnext-auto-build.yml`](../.github/workflows/erpnext-auto-build.yml)。镜像发布使用 GitHub Actions 的 `GITHUB_TOKEN`。
+工作流文件：[`.github/workflows/erpnext-auto-build.yml`](../.github/workflows/erpnext-auto-build.yml)。标准基础流程成功后，由优化工作流自动检查并发布 [ERPNext 优化发行版](../erpnext-optimized/README.md)；优化版独立维护已发布版本，因此优化阶段失败后仍可在后续检查中重试。两个镜像包分别发布，不互相覆盖。镜像发布使用 GitHub Actions 的 `GITHUB_TOKEN`。
 
 ## 组件
 
@@ -55,3 +55,4 @@ ERPNext 发布新版本后，再一并选择各组件的官方稳定版，检查
 [2026-10-04 镜像升级 Release](../docs/更新清单/2026-10-04.md)
 
 [2026-10-06 镜像升级 Release](../docs/更新清单/2026-10-06.md)
+

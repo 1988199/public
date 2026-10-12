@@ -18,6 +18,8 @@ on:
       - "erpnext-single/schemas/**"
       - "erpnext-single/.github/workflows/**"
       - ".github/workflows/erpnext-auto-build.yml"
+      - ".github/workflows/erpnext-optimized.yml"
+      - "erpnext-optimized/**"
 
 permissions:
   contents: write
@@ -45,6 +47,11 @@ jobs:
 
       - name: 测试 ERPNext 主版本发布规则
         run: python3 scripts/test-detect-latest.py
+
+      - name: 检查优化发行脚本和发布规则
+        run: |
+          python3 ../erpnext-optimized/tests/test_prepare_release.py
+          (cd ../erpnext-optimized && python3 tests/static_checks.py)
 
       - name: 检查官方 V16 稳定版本
         id: upstream
@@ -163,7 +170,7 @@ jobs:
             echo '```'
             echo
             echo '已通过构建配置、空站点安装、空目录 bind 挂载及无 SITE_NAME 启动、应用版本、中文关键译文及 localhost 页面资源检查。'
-            echo '本流程只发布镜像，不部署或改动企业站点。'
+            echo '标准基础镜像验证完成后，由优化发行工作流接续检查并发布 erpnext-optimized；不部署或改动企业站点。'
           } | tee release-info/镜像说明.md >> "${GITHUB_STEP_SUMMARY}"
 
       - name: 保存镜像拉取信息
@@ -196,3 +203,4 @@ jobs:
           echo '检查、构建、测试或发布失败。测试未通过时不会进入发布步骤；已验证版本未记录时，下次每日检查将重新尝试。请查看失败步骤日志。' >> "$GITHUB_STEP_SUMMARY"
           docker version || true
           docker system df || true
+
