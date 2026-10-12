@@ -101,7 +101,7 @@ done
 if [[ "$fresh_site" == 1 ]]; then
   # 基础镜像可能包含 MariaDB 系统表，必须确认没有任何应用库，不能仅检查 mysql 目录。
   existing_databases="$(mariadb --protocol=socket -uroot --batch --skip-column-names \
-    -e \"SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql','information_schema','performance_schema','sys','test')\")" || {
+    -e "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql','information_schema','performance_schema','sys','test')")" || {
       echo '无法确认新站点数据库为空，拒绝初始化。' >&2; exit 1;
     }
   [[ -z "$existing_databases" ]] || { echo '数据库已存在但站点配置缺失；拒绝初始化，先检查恢复资料。' >&2; exit 1; }
