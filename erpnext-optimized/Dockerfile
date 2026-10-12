@@ -34,7 +34,7 @@ RUN chmod 0755 /usr/local/bin/entrypoint /usr/local/bin/healthcheck /opt/erpnext
 # 仅从官方固定提交升级 CRM 代码；不连接或迁移任何企业站点。
 USER frappe
 WORKDIR /home/frappe/frappe-bench
-RUN git -C apps/crm fetch --depth 1 origin 0d3910b456ef4fb913e77b29db011b3debc4f778 \
+RUN git -C apps/crm fetch --depth 1 https://github.com/frappe/crm.git 0d3910b456ef4fb913e77b29db011b3debc4f778 \
     && git -C apps/crm checkout --detach 0d3910b456ef4fb913e77b29db011b3debc4f778 \
     && env/bin/python -m pip install --no-deps -e apps/crm \
     && redis-server --daemonize yes --dir /tmp --pidfile /tmp/optimized-redis.pid \
