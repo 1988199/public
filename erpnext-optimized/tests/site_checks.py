@@ -8,6 +8,8 @@ frappe.init(site=os.environ["SITE_NAME"], sites_path=os.getcwd())
 frappe.connect()
 try:
     from erpnext.stock.doctype.item.item_search import ItemSearch
+    frappe.db.set_single_value("Global Defaults", "enable_item_search_index", 1)
+    frappe.db.commit()
     search = ItemSearch()
     search.build_index()
     assert search.index_exists()
