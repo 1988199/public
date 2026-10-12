@@ -33,6 +33,9 @@ run_fresh() {
   docker exec -u frappe -e SITE_NAME="$site" "$prefix-fresh" \
     /home/frappe/frappe-bench/env/bin/python /tmp/site_checks.py
   docker exec -u frappe "$prefix-fresh" /home/frappe/frappe-bench/env/bin/python /opt/erpnext-runtime/test_sqlite.py
+  docker cp tests/web_checks.py "$prefix-fresh:/tmp/web_checks.py"
+  docker exec -u frappe -e SITE_NAME="$site" -e CI_SITE_PASSWORD="$password" "$prefix-fresh" \
+    /home/frappe/frappe-bench/env/bin/python /tmp/web_checks.py
   before="$(docker logs "$prefix-fresh" 2>&1 | grep -c 'Migrating ' || true)"
   docker restart --time 300 "$prefix-fresh"
   wait_healthy "$prefix-fresh"
