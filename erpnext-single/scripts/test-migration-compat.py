@@ -52,6 +52,22 @@ class MigrationTests(unittest.TestCase):
             self.module.refresh_module_registry()
         self.order.register.assert_not_called()
 
+    def test_patch_log_is_queried_by_patch_field(self):
+        crm = types.ModuleType("crm")
+        crm.__version__ = "1.88.0"
+        self.frappe.get_installed_apps = lambda: ["crm"]
+        self.frappe.db = Mock()
+        self.frappe.db.exists.side_effect = lambda dt, key: (
+            isinstance(key, dict) and key.get("patch", "").startswith("crm.patches.v1_0.")
+            if dt == "Patch Log" else True)
+        self.frappe.db.table_exists.return_value = True
+        test_path = MODULE.parent / "tests/migration.py"
+        spec = importlib.util.spec_from_file_location("migration_checks", test_path)
+        checks = importlib.util.module_from_spec(spec)
+        with patch.dict(sys.modules, {"crm": crm}):
+            spec.loader.exec_module(checks)
+            self.assertTrue(checks.run()["official_patches_verified"])
+
 
 if __name__ == "__main__":
     unittest.main()

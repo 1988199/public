@@ -17,7 +17,8 @@ def run():
         if not frappe.db.exists("DocType", name) or not frappe.db.table_exists(name):
             raise RuntimeError("CRM 新模块缺少实际表：" + name)
     for name in ("set_enrichment_rule_names", "drop_enrichment_headers_scope"):
-        if not frappe.db.exists("Patch Log", "crm.patches.v1_0." + name):
+        # Patch Log 使用独立记录编号，补丁路径存放在 patch 字段。
+        if not frappe.db.exists("Patch Log", {"patch": "crm.patches.v1_0." + name}):
             raise RuntimeError("CRM 官方补丁未执行：" + name)
     return {"crm_version": __version__, "enrichment_schema_verified": True,
             "official_patches_verified": True}
