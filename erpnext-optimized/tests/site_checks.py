@@ -7,6 +7,8 @@ os.chdir("/home/frappe/frappe-bench/sites")
 frappe.init(site=os.environ["SITE_NAME"], sites_path=os.getcwd())
 frappe.connect()
 try:
+    # 优化镜像继承标准镜像的独立迁移兼容钩子，同样验证真实表及官方补丁。
+    frappe.get_attr("china_sme_accounting.tests.migration.run")()
     from erpnext.stock.doctype.item.item_search import ItemSearch
     frappe.db.set_single_value("Global Defaults", "enable_item_search_index", 1)
     frappe.db.commit()

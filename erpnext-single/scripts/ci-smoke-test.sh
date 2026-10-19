@@ -137,6 +137,10 @@ grep -Fq '"language": "zh"' <<<"${localization_test}"
 grep -Fq '"required_translation_count": 10' <<<"${localization_test}"
 grep -Fq '"key_translations_verified": true' <<<"${localization_test}"
 
+# 必须存在真实表且官方补丁已执行，不用跳过补丁来掩盖升级失败。
+docker exec "${container}" bash -lc \
+  "cd /home/frappe/frappe-bench && sudo -H -u frappe /home/frappe/.local/bin/bench --site '${site_name}' execute china_sme_accounting.tests.migration.run"
+
 docker exec "${container}" curl --fail --silent --show-error \
   --header "Host: localhost" \
   http://127.0.0.1/api/method/ping >/dev/null

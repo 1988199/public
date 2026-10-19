@@ -46,7 +46,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: 测试 ERPNext 主版本发布规则
-        run: python3 scripts/test-detect-latest.py
+        run: |
+          python3 scripts/test-detect-latest.py
+          python3 scripts/test-migration-compat.py
 
       - name: 检查优化发行脚本和发布规则
         run: |

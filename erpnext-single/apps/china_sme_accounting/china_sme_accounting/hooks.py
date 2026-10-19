@@ -6,3 +6,6 @@ app_email = ""
 app_license = "MIT"
 
 required_apps = ["erpnext"]
+
+# 升级复用 Redis 卷时，必须先刷新模块清单，再同步新增模块的表结构。
+before_migrate = "china_sme_accounting.migration.refresh_module_registry"
