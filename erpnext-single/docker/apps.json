@@ -2,7 +2,7 @@
   {
     "name": "erpnext",
     "url": "https://github.com/frappe/erpnext.git",
-    "ref": "v16.51.0",
+    "ref": "v16.51.1",
     "install_on_new_site": true
   },
   {
@@ -14,7 +14,7 @@
   {
     "name": "crm",
     "url": "https://github.com/frappe/crm.git",
-    "ref": "v1.87.0",
+    "ref": "v1.88.0",
     "install_on_new_site": true
   }
 ]
