@@ -21,3 +21,6 @@ assert manifest["apps"]["erpnext"].startswith("16.")
 assert "@sha256:" in (root / "Dockerfile").read_text()
 assert 'DB_ROOT_PASSWORD=Pass1234 ADMIN_PASSWORD=Pass1234' in (root / "Dockerfile").read_text()
 print("静态检查通过")
+
+# 大日志流下 grep -q 会让生产端收到 SIGPIPE，pipefail 因而误报141。
+assert "| grep -q" not in (root / "tests/smoke.sh").read_text(encoding="utf-8")

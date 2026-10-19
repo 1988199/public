@@ -41,8 +41,9 @@ run_fresh() {
   wait_healthy "$prefix-fresh"
   after="$(docker logs "$prefix-fresh" 2>&1 | grep -c 'Migrating ' || true)"
   [[ "$before" == "$after" ]]
-  docker logs "$prefix-fresh" 2>&1 | grep -q '版本一致：跳过'
-  docker logs "$prefix-fresh" 2>&1 | tail -150 | grep -q 'Shutdown complete'
+  # 不用 grep -q 提前关闭管道，避免日志增多时 pipefail 将 SIGPIPE 当成失败。
+  docker logs "$prefix-fresh" 2>&1 | grep -F '版本一致：跳过' >/dev/null
+  docker logs "$prefix-fresh" 2>&1 | tail -150 | grep -F 'Shutdown complete' >/dev/null
   docker exec "$prefix-fresh" supervisorctl status | tee "$temp/services.txt"
   grep -q '^worker-short.*RUNNING' "$temp/services.txt"
   grep -q '^worker-long.*RUNNING' "$temp/services.txt"
@@ -58,11 +59,11 @@ run_upgrade() {
     sleep 2
   done
   [[ "$(docker inspect --format '{{.State.Running}}' "$prefix-guard")" == false ]]
-  docker logs "$prefix-guard" 2>&1 | grep -q 'RUN_MIGRATIONS=1'
+  docker logs "$prefix-guard" 2>&1 | grep -F 'RUN_MIGRATIONS=1' >/dev/null
   docker run -d --name "$prefix-upgrade" --stop-timeout 300 --volumes-from "$prefix-old" \
     -e SITE_NAME="$site" -e RUN_MIGRATIONS=1 "$image"
   wait_healthy "$prefix-upgrade"
-  docker exec "$prefix-upgrade" find "/home/frappe/frappe-bench/sites/$site/private/runtime_backups" -name manifest.json | grep -q manifest
+  docker exec "$prefix-upgrade" find "/home/frappe/frappe-bench/sites/$site/private/runtime_backups" -name manifest.json | grep -F manifest >/dev/null
   docker cp tests/site_checks.py "$prefix-upgrade:/tmp/site_checks.py"
   docker exec -u frappe -e SITE_NAME="$site" "$prefix-upgrade" \
     /home/frappe/frappe-bench/env/bin/python /tmp/site_checks.py
