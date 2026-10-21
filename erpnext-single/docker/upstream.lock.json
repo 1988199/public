@@ -6,8 +6,8 @@
   },
   "erpnext": {
     "repository": "frappe/erpnext",
-    "ref": "v16.51.1",
-    "sha": "5af6561f5aa48104559692fb4fd82f2580e8d338"
+    "ref": "v16.51.2",
+    "sha": "5a80619cfcc12d4ea51b26de79393adb922c92db"
   },
   "hrms": {
     "repository": "frappe/hrms",
