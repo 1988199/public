@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-ARG BASE_IMAGE=ghcr.io/1988199/erpnext-single@sha256:7a8d9260d761574073e877837e6ef2d68f682531c840ea66a99fb36270db89a2
+ARG BASE_IMAGE=ghcr.io/1988199/erpnext-single@sha256:e16f56e1d9702649bac66c9ac889dc8ba5a17415689fefd823580cc50d17a800
 ARG CRM_SHA=0baa1e8ea462b92d2920bcfdc7a532a730329b6c
 FROM ${BASE_IMAGE} AS sqlite-build
 USER root

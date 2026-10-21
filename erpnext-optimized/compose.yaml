@@ -1,7 +1,7 @@
 name: ${COMPOSE_PROJECT_NAME:-erpnext-optimized}
 services:
   erpnext:
-    image: ${IMAGE_NAME:-ghcr.io/1988199/erpnext-optimized:V16.51.1-opt-20261012.1}
+    image: ${IMAGE_NAME:-ghcr.io/1988199/erpnext-optimized:V16.51.2-opt-20261012.1}
     restart: unless-stopped
     stop_grace_period: 5m
     ports:
