@@ -1,10 +1,10 @@
 {
   "runtime_revision": "20261012.1",
-  "base_digest": "sha256:e16f56e1d9702649bac66c9ac889dc8ba5a17415689fefd823580cc50d17a800",
+  "base_digest": "sha256:2cb5e34aa0cd92e72eca73199d1162b8d69c724f29e1667849b309b601f2e66f",
   "sqlite": "3.54.0",
   "apps": {
     "frappe": "16.52.0",
-    "erpnext": "16.51.2",
+    "erpnext": "16.52.0",
     "hrms": "16.51.0",
     "crm": "1.88.0",
     "china_sme_accounting": "0.2.0"
@@ -17,8 +17,8 @@
     },
     "erpnext": {
       "repository": "frappe/erpnext",
-      "ref": "v16.51.2",
-      "sha": "5a80619cfcc12d4ea51b26de79393adb922c92db"
+      "ref": "v16.52.0",
+      "sha": "90cb7f9243048a44311777d60a1cec8ca05ceec9"
     },
     "hrms": {
       "repository": "frappe/hrms",
