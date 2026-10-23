@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
-ARG BASE_IMAGE=ghcr.io/1988199/erpnext-single@sha256:2cb5e34aa0cd92e72eca73199d1162b8d69c724f29e1667849b309b601f2e66f
-ARG CRM_SHA=0baa1e8ea462b92d2920bcfdc7a532a730329b6c
+ARG BASE_IMAGE=ghcr.io/1988199/erpnext-single@sha256:a694f22862ca07f500d040be81487c767ec70b30e9a826d06415a21a1a2ed372
+ARG CRM_SHA=687f5da11e099615b0f1ed86970defd266e62636
 FROM ${BASE_IMAGE} AS sqlite-build
 USER root
 ARG SQLITE_URL=https://www.sqlite.org/2026/sqlite-autoconf-3540000.tar.gz
