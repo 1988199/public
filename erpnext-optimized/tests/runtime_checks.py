@@ -79,5 +79,13 @@ except RuntimeError:
 else:
     raise RuntimeError('missing application gate did not reject')
 os.environ.pop('REQUIRED_APPS')
+os.environ['REQUIRED_MODULES'] = 'runtime_missing_dependency.module'
+try:
+    readiness.check()
+except ModuleNotFoundError:
+    pass
+else:
+    raise RuntimeError('missing dependency gate did not reject')
+os.environ.pop('REQUIRED_MODULES')
 readiness.check(probe=True)
 print('完整备份、数据库压缩流、附件、配置、加密副本、应用门禁及worker心跳验证通过')

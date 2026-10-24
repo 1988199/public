@@ -8,6 +8,8 @@ import sys
 import tarfile
 import tempfile
 import time
+import types
+from datetime import datetime, timezone
 import unittest
 from unittest.mock import Mock, patch
 
@@ -35,6 +37,16 @@ class RuntimeTests(unittest.TestCase):
 
     def test_complete_manifest(self):
         self.assertTrue(b.verify_manifest(self.bundle())['complete'])
+
+    def test_database_dump_must_have_completion_marker(self):
+        path = self.root / 'test.sql.gz'
+        with gzip.open(path, 'wb') as handle:
+            handle.write(b'CREATE TABLE synthetic;\n')
+        with self.assertRaises(ValueError):
+            b.verify_database(path)
+        with gzip.open(path, 'wb') as handle:
+            handle.write(b'CREATE TABLE synthetic;\n-- Dump completed on test\n')
+        b.verify_database(path)
 
     def test_corrupt_copy_rejected(self):
         folder = self.bundle()
@@ -145,6 +157,36 @@ class RuntimeTests(unittest.TestCase):
         with patch.dict(os.environ, {'BACKUP_RETRIES': '1000'}):
             with self.assertRaises(ValueError):
                 b.number('BACKUP_RETRIES', 3, high=5)
+
+    def test_failed_job_counts_do_not_cleanup_registry(self):
+        spec = importlib.util.spec_from_file_location('runtime_readiness', Path(__file__).resolve().parents[1] / 'docker/readiness.py')
+        ready = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(ready)
+        frappe = types.ModuleType('frappe')
+        for name in ('init', 'connect', 'destroy'):
+            setattr(frappe, name, Mock())
+        frappe.db = Mock()
+        frappe.get_installed_apps = lambda: []
+        jobs = types.ModuleType('frappe.utils.background_jobs')
+        connection = Mock()
+        connection.llen.return_value = 3
+        connection.zcard.return_value = 42
+        queue = types.SimpleNamespace(connection=connection, key='synthetic-queue')
+        jobs.get_queue = lambda _: queue
+        jobs.get_workers = lambda _: [types.SimpleNamespace(last_heartbeat=datetime.now(timezone.utc))]
+        registry = types.ModuleType('rq.registry')
+        class ReadOnlyRegistry:
+            def __init__(self, queue):
+                self.key = 'synthetic-failed-key'
+            @property
+            def count(self):
+                raise AssertionError('count may clean expired jobs')
+        registry.FailedJobRegistry = ReadOnlyRegistry
+        env = {'BACKUP_ENABLED': '0', 'VERIFY_QUEUE_HEARTBEAT': '1', 'REQUIRED_APPS': '',
+               'REQUIRED_ASSET_PATHS': '', 'DEPLOYMENT_READY_FILE': ''}
+        with patch.dict(sys.modules, {'frappe': frappe, 'frappe.utils.background_jobs': jobs, 'rq.registry': registry}), \
+             patch.dict(os.environ, env), patch.object(ready.os, 'chdir'):
+            self.assertEqual(ready.check(True)['queues']['long']['historical_failed'], 42)
 
     def test_finite_retries_and_failure_status(self):
         states = []

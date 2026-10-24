@@ -48,10 +48,8 @@ def backup():
                               db_host=frappe.conf.db_host, db_port=frappe.conf.db_port, db_socket=frappe.conf.db_socket,
                               db_type=frappe.conf.db_type, backup_path=str(folder), ignore_conf=True, compress_files=True)
         gen.get_backup(ignore_files=False, force=True)
-        with gzip.open(gen.backup_path_db, "rb") as file:
-            dump = file.read()
-        if b"CREATE TABLE" not in dump or b"Dump completed" not in dump[-4096:]:
-            raise RuntimeError("数据库备份校验未通过，拒绝迁移")
+        from backup_service import verify_database
+        verify_database(Path(gen.backup_path_db))
         files = []
         for attr in ["backup_path_db", "backup_path_files", "backup_path_private_files", "backup_path_conf"]:
             path = Path(getattr(gen, attr))

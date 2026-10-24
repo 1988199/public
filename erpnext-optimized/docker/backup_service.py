@@ -84,7 +84,11 @@ def key_bytes():
     path = os.environ.get('BACKUP_ENCRYPTION_KEY_FILE')
     if not path:
         return None
-    key = Path(path).read_bytes()
+    file = Path(path)
+    if not file.is_file() or file.stat().st_size != 32:
+        raise ValueError('backup encryption key must be a 32-byte regular file')
+    with file.open('rb') as handle:
+        key = handle.read(33)
     if len(key) != 32:
         raise ValueError('backup encryption key must contain 32 raw bytes')
     return key
@@ -138,17 +142,22 @@ def decrypt(source, target, key):
         temp.unlink(missing_ok=True)
 
 
-def verify_raw(folder):
-    """校验完整压缩流和附件内容，不仅检查文件存在。"""
+def verify_database(path):
+    """固定大小分块验证，避免大数据库备份被整份加载到内存。"""
     found_table = False
     tail = b''
-    with gzip.open(folder / 'database.sql.gz', 'rb') as handle:
+    with gzip.open(path, 'rb') as handle:
         while chunk := handle.read(1024 * 1024):
             combined = tail + chunk
             found_table |= b'CREATE TABLE' in combined
             tail = combined[-8192:]
     if not found_table or b'Dump completed' not in tail:
         raise ValueError('database dump incomplete')
+
+
+def verify_raw(folder):
+    """校验完整压缩流和附件内容，不仅检查文件存在。"""
+    verify_database(folder / 'database.sql.gz')
     for name in ('public-files.tgz', 'private-files.tgz'):
         with gzip.open(folder / name, 'rb') as compressed:
             while compressed.read(1024 * 1024):
@@ -276,17 +285,22 @@ def one_backup():
                 backup_path_files=str(raw / 'public-files.tgz'), backup_path_private_files=str(raw / 'private-files.tgz'))
             # 使用官方生成器的完整原语，先验证明文，再按独立密钥加密整个包。
             with open(os.devnull, 'w') as quiet, contextlib.redirect_stdout(quiet), contextlib.redirect_stderr(quiet):
+                status(phase='database')
                 gen.take_dump()
+                status(phase='site-configuration')
                 gen.copy_site_config()
+                status(phase='attachments')
                 gen.backup_files()
             shutil.copyfile(BENCH / 'sites/common_site_config.json', raw / 'common-site-config.json')
             atomic_json(raw / 'applications.json', {app: getattr(importlib.import_module(app), '__version__', 'unknown')
                         for app in frappe.get_installed_apps()})
         finally:
             frappe.destroy()
+        status(phase='validation')
         verify_raw(raw)
         manifest(raw)
         if key:
+            status(phase='encryption')
             archive = partial / 'payload.tar'
             with tarfile.open(archive, 'w') as tar:
                 tar.add(raw, arcname='backup')
@@ -309,6 +323,7 @@ def one_backup():
         verify_manifest(final)
         prune(ROOT, number('BACKUP_RETENTION_DAYS', 7))
         if external:
+            status(phase='external-copy')
             target = Path(external) / SITE / 'runtime-v1'
             if not Path(external).is_dir() or target.is_symlink():
                 raise ValueError('external copy directory must be pre-mounted')
@@ -322,7 +337,7 @@ def one_backup():
             verify_manifest(staged)
             staged.rename(target / name)
             prune(target, number('BACKUP_COPY_RETENTION_DAYS', 30))
-        status(state='ok', last_success=time.time(), last_backup=name, failures=0, external_copy=bool(external))
+        status(state='ok', phase='complete', last_success=time.time(), last_backup=name, failures=0, external_copy=bool(external))
 
 
 def stop(_signum, _frame):

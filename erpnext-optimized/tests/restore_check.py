@@ -23,6 +23,11 @@ def run(command, check=True):
     result = subprocess.run(command, capture_output=True, text=True, env=env)
     if check and result.returncode:
         # 不打印包含恢复参数或凭据的命令和第三方输出。
+        if command[-1] == '/tmp/restore_verify.py':
+            diagnostic = json.loads(result.stdout.strip())
+            allowed = {'configuration', 'connection', 'customer', 'configuration_marker', 'public_attachment', 'private_attachment'}
+            if diagnostic.get('stage') in allowed and str(diagnostic.get('error', '')).isidentifier():
+                raise RuntimeError('restore verification failed at ' + diagnostic['stage'] + ': ' + diagnostic['error'])
         raise RuntimeError('synthetic restore operation failed')
     return result
 
