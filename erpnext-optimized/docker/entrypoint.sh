@@ -43,6 +43,7 @@ run_bench() {
 install -d -o mysql -g mysql /run/mysqld /var/lib/mysql
 install -d -o redis -g redis /var/lib/redis
 install -d -o frappe -g frappe "$BENCH_DIR/sites" "$BENCH_DIR/logs"
+install -d -o www-data -g adm -m 0750 "$BENCH_DIR/logs/nginx"
 
 # 空 bind mount 不会像 Docker volume 一样复制镜像中的 sites 文件。
 # 在首次 Bench 调用前生成公共 App 清单；已有站点配置及业务文件不覆盖。
@@ -156,6 +157,9 @@ elif ! cmp --silent /opt/erpnext-runtime/manifest.json "$stamp"; then
 else
   echo '版本一致：跳过应用安装与数据库迁移。'
 fi
+
+# 所有已安装应用、hooks及可选部署标记就绪后，才放行Web和后台worker。
+sudo -E -H -u frappe env SITE_NAME="$SITE_NAME" "$BENCH_DIR/env/bin/python" /opt/erpnext-runtime/readiness.py imports
 
 cleanup_bootstrap
 trap - EXIT TERM INT

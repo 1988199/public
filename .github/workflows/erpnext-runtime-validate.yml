@@ -1,0 +1,41 @@
+name: ERPNext 运行维护候选验证（不发布）
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'erpnext-optimized/**'
+      - '.github/workflows/erpnext-runtime-validate.yml'
+permissions:
+  contents: read
+concurrency:
+  group: erpnext-runtime-validation
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: erpnext-optimized
+    steps:
+      - uses: actions/checkout@v4
+      - name: 静态检查与版本门禁回归
+        run: |
+          python3 tests/static_checks.py
+          python3 tests/test_prepare_release.py
+          bash -n docker/*.sh tests/*.sh
+      - name: 构建隔离候选镜像
+        run: docker build -t erpnext-runtime-candidate:ci .
+      - name: 离线备份与加密回归
+        run: |
+          docker run --rm --network none --entrypoint /home/frappe/frappe-bench/env/bin/python \
+            --mount type=bind,source="$PWD",target=/check,readonly \
+            erpnext-runtime-candidate:ci /check/tests/test_runtime_ops.py
+      - name: 初始化、升级与运行维护验证
+        run: |
+          base="$(sed -n 's/^ARG BASE_IMAGE=//p' Dockerfile)"
+          docker pull "$base"
+          bash tests/smoke.sh erpnext-runtime-candidate:ci "$base"
+      - name: 验证结论
+        run: echo '候选验证通过；不推送镜像、不改变已发布版本基线，正式发布仍仅跟随 ERPNext 新版本。' >> "$GITHUB_STEP_SUMMARY"

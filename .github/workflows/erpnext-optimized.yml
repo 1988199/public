@@ -65,6 +65,9 @@ jobs:
         if: steps.version.outputs.build == 'true'
         id: smoke
         run: |
+          docker run --rm --network none --entrypoint /home/frappe/frappe-bench/env/bin/python \
+            --mount type=bind,source="$PWD",target=/check,readonly \
+            "$LOCAL_IMAGE" /check/tests/test_runtime_ops.py
           python3 tests/test_defaults.py --image "$LOCAL_IMAGE"
           bash tests/smoke.sh "$LOCAL_IMAGE" "$BASE_REF"
 

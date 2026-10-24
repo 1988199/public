@@ -28,7 +28,12 @@ COPY docker/entrypoint.sh /usr/local/bin/entrypoint
 COPY docker/healthcheck.sh /usr/local/bin/healthcheck
 COPY docker/supervisord.conf /etc/supervisor/conf.d/erpnext.conf
 COPY docker/sqlite-runtime.conf /etc/ld.so.conf.d/00-erpnext-sqlite.conf
+RUN apt-get update && apt-get install --no-install-recommends -y logrotate \
+    && rm -rf /var/lib/apt/lists/* \
+    && /home/frappe/frappe-bench/env/bin/python /opt/erpnext-runtime/configure_runtime.py \
+    && install -d -o frappe -g frappe -m 0700 /runtime-copy
 RUN chmod 0755 /usr/local/bin/entrypoint /usr/local/bin/healthcheck /opt/erpnext-runtime/wait-dependencies.sh \
+    /opt/erpnext-runtime/logrotate-service.sh \
     && ldconfig \
     && /home/frappe/frappe-bench/env/bin/python /opt/erpnext-runtime/test_sqlite.py
 

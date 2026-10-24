@@ -62,6 +62,12 @@ def prepare(root, standard, base_image=None):
             if count != 1:
                 raise ValueError(f"Dockerfile 中缺少 {key}")
         target["base_digest"] = match[1]
+        revision = root / 'docker/RUNTIME_REVISION'
+        if revision.exists():
+            value = revision.read_text().strip()
+            if not re.fullmatch(r'\d{8}\.\d+', value):
+                raise ValueError('运行修订号非法')
+            target['runtime_revision'] = value
         compose = root / "compose.yaml"
         if compose.exists():
             image_name = base_image.split("/erpnext-single@")[0] + "/erpnext-optimized:V" + target["apps"]["erpnext"] + "-opt-" + target["runtime_revision"]
