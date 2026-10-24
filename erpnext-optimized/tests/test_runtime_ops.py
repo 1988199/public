@@ -72,6 +72,22 @@ class RuntimeTests(unittest.TestCase):
                 with b.backup_lock(self.root):
                     self.fail('second backup entered')
 
+    def test_retention_preserves_unrecognized_user_content(self):
+        folder = self.bundle()
+        data = json.loads((folder / 'manifest.json').read_text())
+        data['created'] = time.time() - 259200
+        b.atomic_json(folder / 'manifest.json', data)
+        (folder / 'user-added-file').write_text('preserve')
+        b.prune(self.root, 1, keep=0)
+        self.assertTrue((folder / 'user-added-file').exists())
+
+    def test_lock_rejects_symlink_root(self):
+        linked = self.root / 'link'
+        linked.symlink_to(self.root, target_is_directory=True)
+        with self.assertRaises(ValueError):
+            with b.backup_lock(linked):
+                self.fail('symlink root accepted')
+
     def test_interrupted_retention_requires_owned_marker(self):
         owned = self.root / 'backup-20200101T000000000000Z.partial-abcdefgh'
         unknown = self.root / 'backup-20200101T000000000000Z.partial-ijklmnop'

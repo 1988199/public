@@ -46,8 +46,17 @@ def atomic_json(path, value):
 
 
 def read_status():
+    validate_root()
     path = ROOT / 'status.json'
+    if path.is_symlink():
+        raise ValueError('backup status cannot be a symlink')
     return json.loads(path.read_text()) if path.exists() else {}
+
+
+def validate_root():
+    site = (BENCH / 'sites' / SITE).resolve()
+    if ROOT.is_symlink() or not ROOT.resolve().is_relative_to(site):
+        raise ValueError('local backup directory escaped site')
 
 
 def status(**values):
@@ -58,6 +67,10 @@ def status(**values):
 
 @contextlib.contextmanager
 def backup_lock(root):
+    if root.is_symlink():
+        raise ValueError('backup lock root cannot be a symlink')
+    if root == ROOT:
+        validate_root()
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     with (root / '.lock').open('a') as handle:
         try:
@@ -165,8 +178,12 @@ def manifest(folder, encrypted=False):
                 'created': time.time(), 'encrypted': encrypted, 'files': files})
 
 
-def verify_manifest(folder):
+def verify_manifest(folder, checksum=True):
+    if (folder / 'manifest.json').is_symlink():
+        raise ValueError('manifest cannot be a symlink')
     data = json.loads((folder / 'manifest.json').read_text())
+    if not isinstance(data, dict):
+        raise ValueError('invalid manifest type')
     if data.get('format') != 'erpnext-runtime-v1' or data.get('complete') is not True or not data.get('files'):
         raise ValueError('invalid backup manifest')
     for item in data['files']:
@@ -176,9 +193,16 @@ def verify_manifest(folder):
         path = folder / name
         if path.is_symlink() or not path.is_file():
             raise ValueError('invalid backup component')
-        with path.open('rb') as handle:
-            if hashlib.file_digest(handle, 'sha256').hexdigest() != item['sha256']:
+        if path.stat().st_size != item['bytes']:
+            raise ValueError('backup component size mismatch')
+        if checksum:
+            with path.open('rb') as handle:
+                digest = hashlib.file_digest(handle, 'sha256').hexdigest()
+            if digest != item['sha256']:
                 raise ValueError('backup component checksum mismatch')
+    expected = {'manifest.json'} | {item['name'] for item in data['files']}
+    if {path.name for path in folder.iterdir()} != expected:
+        raise ValueError('unrecognized content in backup directory')
     return data
 
 
@@ -191,13 +215,17 @@ def prune(root, days, keep=2):
         if path.resolve().parent != root.resolve():
             raise ValueError('backup retention path escaped')
         try:
-            data = verify_manifest(path)
+            data = verify_manifest(path, checksum=False)
         except (ValueError, OSError, KeyError):
             continue
         candidates.append((float(data['created']), path))
     candidates.sort(reverse=True)
     for created, path in candidates[keep:]:
         if created < time.time() - days * 86400:
+            try:
+                verify_manifest(path)
+            except (ValueError, OSError, KeyError):
+                continue
             shutil.rmtree(path)
 
 

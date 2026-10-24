@@ -22,7 +22,6 @@ fi
 
 # 浏览器使用 localhost，内部仍可沿用持久卷中既有的站点名。
 envsubst '${SITE_NAME}' </etc/nginx/nginx.conf.template >/etc/nginx/nginx.conf
-nginx -t
 
 fresh_site=0
 fresh_database=0
@@ -43,7 +42,12 @@ run_bench() {
 install -d -o mysql -g mysql /run/mysqld /var/lib/mysql
 install -d -o redis -g redis /var/lib/redis
 install -d -o frappe -g frappe "$BENCH_DIR/sites" "$BENCH_DIR/logs"
+if [[ -L "$BENCH_DIR/logs/nginx" || -L "$BENCH_DIR/logs/nginx/access.log" || -L "$BENCH_DIR/logs/nginx/error.log" ]]; then
+  echo 'Nginx日志目录及文件不能是符号链接。' >&2
+  exit 1
+fi
 install -d -o www-data -g adm -m 0750 "$BENCH_DIR/logs/nginx"
+nginx -t
 
 # 空 bind mount 不会像 Docker volume 一样复制镜像中的 sites 文件。
 # 在首次 Bench 调用前生成公共 App 清单；已有站点配置及业务文件不覆盖。
