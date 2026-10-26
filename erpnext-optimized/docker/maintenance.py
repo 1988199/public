@@ -37,7 +37,7 @@ def ready():
 def backup():
     import frappe
     os.chdir(BENCH / "sites")
-    frappe.init(site=SITE, sites_path=str(BENCH / "sites"))
+    frappe.init(site=SITE, sites_path='.')
     frappe.connect()
     try:
         from frappe.utils.backups import BackupGenerator

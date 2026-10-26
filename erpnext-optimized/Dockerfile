@@ -22,18 +22,19 @@ USER root
 ENV DB_ROOT_PASSWORD=Pass1234 ADMIN_PASSWORD=Pass1234 \
     LD_LIBRARY_PATH=/opt/sqlite-runtime \
     SITE_NAME=erp.localhost
+# 将不随运行脚本变化的系统依赖放在COPY之前，避免改脚本就重新安装依赖。
+RUN apt-get update && apt-get install --no-install-recommends -y logrotate \
+    && rm -rf /var/lib/apt/lists/* \
+    && install -d -o frappe -g frappe -m 0700 /runtime-copy \
+    && install -d -o root -g root -m 0755 /var/lib/logrotate
 COPY --from=sqlite-build /opt/sqlite-runtime /opt/sqlite-runtime
 COPY docker/ /opt/erpnext-runtime/
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint
 COPY docker/healthcheck.sh /usr/local/bin/healthcheck
 COPY docker/supervisord.conf /etc/supervisor/conf.d/erpnext.conf
 COPY docker/sqlite-runtime.conf /etc/ld.so.conf.d/00-erpnext-sqlite.conf
-RUN apt-get update && apt-get install --no-install-recommends -y logrotate \
-    && rm -rf /var/lib/apt/lists/* \
-    && /home/frappe/frappe-bench/env/bin/python /opt/erpnext-runtime/configure_runtime.py \
-    && install -d -o frappe -g frappe -m 0700 /runtime-copy \
-    && install -d -o root -g root -m 0755 /var/lib/logrotate
-RUN chmod 0755 /usr/local/bin/entrypoint /usr/local/bin/healthcheck /opt/erpnext-runtime/wait-dependencies.sh \
+RUN /home/frappe/frappe-bench/env/bin/python /opt/erpnext-runtime/configure_runtime.py \
+    && chmod 0755 /usr/local/bin/entrypoint /usr/local/bin/healthcheck /opt/erpnext-runtime/wait-dependencies.sh \
     /opt/erpnext-runtime/logrotate-service.sh \
     && ldconfig \
     && /home/frappe/frappe-bench/env/bin/python /opt/erpnext-runtime/test_sqlite.py

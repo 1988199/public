@@ -122,10 +122,16 @@ SQL
 fi
 
 cd "$BENCH_DIR"
-run_bench set-config -g redis_cache redis://127.0.0.1:6379
-run_bench set-config -g redis_queue redis://127.0.0.1:6379
-run_bench set-config -g redis_socketio redis://127.0.0.1:6379
-run_bench set-config -g socketio_port 9000
+# 连接配置不变时不重复启动四次Bench、不重复改写配置；不降低首次初始化及修复能力。
+if ! jq -e '.redis_cache == "redis://127.0.0.1:6379" and
+    .redis_queue == "redis://127.0.0.1:6379" and
+    .redis_socketio == "redis://127.0.0.1:6379" and .socketio_port == 9000' \
+    sites/common_site_config.json >/dev/null; then
+  run_bench set-config -g redis_cache redis://127.0.0.1:6379
+  run_bench set-config -g redis_queue redis://127.0.0.1:6379
+  run_bench set-config -g redis_socketio redis://127.0.0.1:6379
+  run_bench set-config -g socketio_port 9000
+fi
 
 if [[ ! -f "sites/${SITE_NAME}/site_config.json" ]]; then
   run_bench new-site "$SITE_NAME" \

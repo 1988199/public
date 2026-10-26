@@ -17,6 +17,7 @@ import tempfile
 import tarfile
 import time
 import uuid
+from threading import Event
 from datetime import datetime, timezone
 
 BENCH = Path('/home/frappe/frappe-bench')
@@ -27,6 +28,7 @@ ROOT = BENCH / 'sites' / SITE / 'private' / 'automatic_backups'
 MAGIC = b'ERPBK001'
 STOP = False
 CHILD = None
+STOP_EVENT = Event()
 
 
 def number(key, default, low=1, high=31536000):
@@ -100,43 +102,60 @@ def encrypt(source, target, key):
     nonce = os.urandom(12)
     cipher = Cipher(algorithms.AES(key), modes.GCM(nonce)).encryptor()
     cipher.authenticate_additional_data(MAGIC)
+    digest = hashlib.sha256()
     with source.open('rb') as src, target.open('xb') as dst:
         os.chmod(target, 0o600)
         dst.write(MAGIC + nonce)
         while chunk := src.read(1024 * 1024):
+            digest.update(chunk)
             dst.write(cipher.update(chunk))
         dst.write(cipher.finalize())
         dst.write(cipher.tag)
+    return digest.digest()
+
+
+def decrypt_stream(source, key, output=None):
+    """完整认证并计算明文摘要；验证模式不写出临时明文，也不占用整包内存。"""
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+    digest = hashlib.sha256()
+    with source.open('rb') as src:
+        if src.read(8) != MAGIC:
+            raise ValueError('unknown backup format')
+        nonce = src.read(12)
+        size = os.fstat(src.fileno()).st_size - 36
+        if size < 0:
+            raise ValueError('truncated encrypted backup')
+        src.seek(-16, 2)
+        cipher = Cipher(algorithms.AES(key), modes.GCM(nonce, src.read(16))).decryptor()
+        cipher.authenticate_additional_data(MAGIC)
+        src.seek(20)
+        while size:
+            chunk = src.read(min(size, 1024 * 1024))
+            if not chunk:
+                raise ValueError('truncated encrypted backup')
+            size -= len(chunk)
+            plain = cipher.update(chunk)
+            digest.update(plain)
+            if output is not None:
+                output.write(plain)
+        final = cipher.finalize()
+        digest.update(final)
+        if output is not None:
+            output.write(final)
+    return digest.digest()
 
 
 def decrypt(source, target, key):
     """认证成功才将临时输出提升为目标；认证失败不留下伪恢复文件。"""
-    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
     if target.exists():
         raise FileExistsError('restore target already exists')
     temp = target.with_suffix(target.suffix + '.partial')
     if temp.exists():
         raise FileExistsError('partial restore target already exists')
     try:
-        with source.open('rb') as src, temp.open('xb') as dst:
+        with temp.open('xb') as dst:
             os.chmod(temp, 0o600)
-            if src.read(8) != MAGIC:
-                raise ValueError('unknown backup format')
-            nonce = src.read(12)
-            size = source.stat().st_size - 36
-            if size < 0:
-                raise ValueError('truncated encrypted backup')
-            src.seek(-16, 2)
-            cipher = Cipher(algorithms.AES(key), modes.GCM(nonce, src.read(16))).decryptor()
-            cipher.authenticate_additional_data(MAGIC)
-            src.seek(20)
-            while size:
-                chunk = src.read(min(size, 1024 * 1024))
-                if not chunk:
-                    raise ValueError('truncated encrypted backup')
-                size -= len(chunk)
-                dst.write(cipher.update(chunk))
-            dst.write(cipher.finalize())
+            decrypt_stream(source, key, dst)
         temp.replace(target)
     finally:
         temp.unlink(missing_ok=True)
@@ -159,15 +178,17 @@ def verify_raw(folder):
     """校验完整压缩流和附件内容，不仅检查文件存在。"""
     verify_database(folder / 'database.sql.gz')
     for name in ('public-files.tgz', 'private-files.tgz'):
+        # 一次顺序解压同时核验tar成员与gzip尾部CRC，避免两次解压整个附件包。
         with gzip.open(folder / name, 'rb') as compressed:
+            with tarfile.open(fileobj=compressed, mode='r|', stream=True) as archive:
+                for member in archive:
+                    if member.isfile():
+                        with archive.extractfile(member) as handle:
+                            while handle.read(1024 * 1024):
+                                pass
+            # tar结束标记之后仍须读至gzip EOF，不能漏掉损坏尾部或追加gzip成员。
             while compressed.read(1024 * 1024):
                 pass
-        with tarfile.open(folder / name, 'r:gz') as archive:
-            for member in archive:
-                if member.isfile():
-                    with archive.extractfile(member) as handle:
-                        while handle.read(1024 * 1024):
-                            pass
     config = json.loads((folder / 'site-config.json').read_text())
     if not config.get('db_name') or not config.get('db_password'):
         raise ValueError('site configuration incomplete')
@@ -272,7 +293,9 @@ def one_backup():
         raw = partial / 'payload'
         raw.mkdir(mode=0o700)
         os.chdir(BENCH / 'sites')
-        frappe.init(site=SITE, sites_path=str(BENCH / 'sites'))
+        # 官方附件备份保存get_site_path的路径，必须采用Bench标准相对sites路径，
+        # 否则bench restore会把绝对路径层级带入附件目录，无法原位恢复。
+        frappe.init(site=SITE, sites_path='.')
         frappe.connect()
         try:
             if frappe.get_system_settings('encrypt_backup') and not key:
@@ -304,14 +327,10 @@ def one_backup():
             archive = partial / 'payload.tar'
             with tarfile.open(archive, 'w') as tar:
                 tar.add(raw, arcname='backup')
-            encrypt(archive, partial / 'backup.enc', key)
-            # GCM 全流认证回读后才提交备份，校验结果不输出解密内容。
-            check = partial / 'verify.tar'
-            decrypt(partial / 'backup.enc', check, key)
-            with check.open('rb') as left, archive.open('rb') as right:
-                if hashlib.file_digest(left, 'sha256').digest() != hashlib.file_digest(right, 'sha256').digest():
-                    raise ValueError('encrypted backup verification failed')
-            check.unlink()
+            expected = encrypt(archive, partial / 'backup.enc', key)
+            # 保留完整GCM认证与SHA-256比对，但不再写出和重读整包verify.tar。
+            if decrypt_stream(partial / 'backup.enc', key) != expected:
+                raise ValueError('encrypted backup verification failed')
             archive.unlink()
             shutil.rmtree(raw)
             manifest(partial, encrypted=True)
@@ -343,6 +362,7 @@ def one_backup():
 def stop(_signum, _frame):
     global STOP
     STOP = True
+    STOP_EVENT.set()
     if CHILD and CHILD.poll() is None:
         with contextlib.suppress(ProcessLookupError):
             os.killpg(CHILD.pid, signal.SIGTERM)
@@ -394,15 +414,15 @@ def daemon():
                     break
                 if not STOP:
                     status(state='retrying', failures=attempt + 1, last_failure=time.time())
-                    for _ in range(min(5 * (2 ** attempt), 60)):
-                        if STOP:
-                            break
-                        time.sleep(1)
+                    STOP_EVENT.wait(min(5 * (2 ** attempt), 60))
             if not success and not STOP and code != 75:
                 status(state='failed', last_failure=time.time(), failures=retries)
                 print('备份失败：已达有限重试次数；请检查私有状态及存储权限', flush=True)
             next_run = time.time() + interval
-        time.sleep(1)
+        # 空闲时最多每分钟核对一次墙钟，保留计划时间精度且可被停机信号立即唤醒。
+        # 关闭备份时无限等待信号，不再每秒空转。短等待仍按实际到期时间执行。
+        if not STOP:
+            STOP_EVENT.wait(max(0, min(next_run - time.time(), 60)) if enabled else None)
 
 
 if __name__ == '__main__':

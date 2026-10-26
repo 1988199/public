@@ -50,6 +50,9 @@ for name, folder in [('public-files.tgz', 'public'), ('private-files.tgz', 'priv
         found = [x for x in archive if x.name.endswith('runtime-synthetic.txt')]
         if len(found) != 1 or archive.extractfile(found[0]).read().decode() != folder + '-synthetic':
             raise RuntimeError('attachment backup missing')
+        # 官方restore期望站点/公开或私有目录/files；禁止打入宿主绝对路径层级。
+        if found[0].name.removeprefix('./') != SITE + '/' + folder + '/files/runtime-synthetic.txt':
+            raise RuntimeError('attachment archive not compatible with bench restore')
 
 # 密钥仅在临时容器中随机生成，不打印、不上传。
 key = Path('/tmp/runtime-synthetic.key')
