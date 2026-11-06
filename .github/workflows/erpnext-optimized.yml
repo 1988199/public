@@ -49,7 +49,8 @@ jobs:
           set -Eeuo pipefail
           [[ "$GITHUB_REF" == refs/heads/main ]]
           BASE="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/erpnext-single:V$VERSION"
-          DIGEST=$(docker manifest inspect --verbose "$BASE" | python3 -c 'import json,sys;print(json.load(sys.stdin)["Descriptor"]["digest"])')
+          # 读取顶层分发摘要，同时兼容单镜像清单和 OCI 镜像索引。
+          DIGEST=$(docker buildx imagetools inspect "$BASE" --format '{{json .Manifest.Digest}}' | jq -er '.')
           [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
           BASE_REF="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/erpnext-single@$DIGEST"
           docker pull "$BASE_REF"
