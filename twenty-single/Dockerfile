@@ -1,4 +1,4 @@
-ARG TWENTY_TAG=v2.63.0
+ARG TWENTY_TAG=v2.65.0
 FROM twentycrm/twenty:${TWENTY_TAG}
 
 USER root
